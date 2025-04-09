@@ -2,18 +2,23 @@ package com.example.democropviewanddrag
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.graphics.Point
+import android.graphics.PointF
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import com.example.democropviewanddrag.databinding.ActivityMainBinding
-import com.example.democropviewanddrag.databinding.ActivityMainNewBinding
 import androidx.core.graphics.createBitmap
+import com.example.democropviewanddrag.databinding.ActivityMainNewBinding
+
 
 class Main2Activity : AppCompatActivity() {
 
-    private lateinit var binding : ActivityMainNewBinding
+    private lateinit var binding: ActivityMainNewBinding
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,6 +44,10 @@ class Main2Activity : AppCompatActivity() {
 
         binding.btnShow.setOnClickListener {
             binding.ivPreview.setImageBitmap(mergeBitmaps())
+        }
+
+        binding.btnWatermark.setOnClickListener {
+            binding.ivPreview.setImageBitmap(addWatermark())
         }
 
         // Đồng bộ tỷ lệ và vị trí của CropZoomView với vùng crop của CropImageView
@@ -93,4 +102,27 @@ class Main2Activity : AppCompatActivity() {
 
         return resultBitmap
     }
+
+    fun addWatermark(): Bitmap? {
+
+        val mergedBitmap = mergeBitmaps() ?: return null
+
+        val resultBitmap = createBitmap(mergedBitmap.width, mergedBitmap.height)
+
+        val watermarkBitmap = BitmapFactory.decodeResource(resources, R.drawable.bg_watermark)
+
+        val canvas = Canvas(resultBitmap)
+
+        canvas.drawBitmap(mergedBitmap,0f,0f, null)
+
+        canvas.drawBitmap(
+            watermarkBitmap,
+            (mergedBitmap.width - watermarkBitmap.width).toFloat(),
+            (mergedBitmap.height - watermarkBitmap.height).toFloat(),
+            null
+        )
+
+        return resultBitmap
+    }
+
 }
