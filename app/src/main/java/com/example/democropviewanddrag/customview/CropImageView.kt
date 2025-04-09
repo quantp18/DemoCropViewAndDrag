@@ -8,6 +8,7 @@ import android.graphics.*
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.util.AttributeSet
+import android.util.Log
 import android.view.GestureDetector.SimpleOnGestureListener
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
@@ -17,6 +18,7 @@ import android.view.View.OnLayoutChangeListener
 import android.view.animation.LinearInterpolator
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.core.view.GestureDetectorCompat
+import androidx.core.view.drawToBitmap
 import com.example.democropviewanddrag.R
 import kotlin.math.roundToInt
 
@@ -554,4 +556,28 @@ class CropImageView @JvmOverloads constructor(
         canvas.restore()
         return bitmap
     }
+
+    fun getAccurateCropBitmap(config: Bitmap.Config = Bitmap.Config.ARGB_8888): Bitmap? {
+        if (drawable == null) return null
+
+        // Bước 1: Vẽ toàn bộ view thành bitmap
+        val fullBitmap = this.drawToBitmap(config)
+
+        // Bước 2: Xác định vùng crop chính xác trong bitmap của view
+        val scaleX = fullBitmap.width.toFloat() / this.width
+        val scaleY = fullBitmap.height.toFloat() / this.height
+
+        val left = (mCropRectF.left * scaleX).toInt()
+        val top = (mCropRectF.top * scaleY).toInt()
+        val width = (mCropRectF.width() * scaleX).toInt()
+        val height = (mCropRectF.height() * scaleY).toInt()
+
+        if (left + width > fullBitmap.width || top + height > fullBitmap.height) {
+            Log.e("Crop", "Out of bounds crop area")
+            return null
+        }
+
+        return Bitmap.createBitmap(fullBitmap, left, top, width, height)
+    }
+
 }
