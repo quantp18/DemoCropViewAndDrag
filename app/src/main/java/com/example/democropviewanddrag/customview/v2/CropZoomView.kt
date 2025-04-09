@@ -86,7 +86,6 @@ class CropZoomView @JvmOverloads constructor(
 
             // Vẽ icon rotate (top-left)
 
-            Log.e("TAG", "onDraw: rotateIcon ==> ${rotateIcon == null} -- ${zoomIcon == null}")
             rotateIcon?.let {
                 val rotateRect = RectF(
                     backgroundRect.left - iconSize / 2, backgroundRect.top - iconSize / 2,
@@ -235,8 +234,11 @@ class CropZoomView @JvmOverloads constructor(
 
             return resultBitmap
         }
+        //todo check lại size ảnh bitmap foreground với background
         return null
     }
+
+
 
 //    fun getBitmapPosition(): RectF {
 //        val rect = RectF(0f, 0f, imageBitmap?.width?.toFloat() ?: 0f, imageBitmap?.height?.toFloat() ?: 0f)
@@ -250,8 +252,8 @@ class CropZoomView @JvmOverloads constructor(
 
     fun adjustToRatio(ratio: Float) {
         // Điều chỉnh backgroundRect để có cùng tỷ lệ với vùng crop
-        val newWidth = backgroundRect.height() * ratio
-        backgroundRect.right = backgroundRect.left + newWidth
+//        val newWidth = backgroundRect.height() * ratio
+//        backgroundRect.right = backgroundRect.left + newWidth
 
         // Cập nhật ma trận hình ảnh để khớp với backgroundRect mới
         imageBitmap?.let { bitmap ->
@@ -262,4 +264,5 @@ class CropZoomView @JvmOverloads constructor(
         }
         invalidate()
     }
+
 }

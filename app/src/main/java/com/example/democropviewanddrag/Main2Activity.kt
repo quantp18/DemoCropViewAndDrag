@@ -4,8 +4,10 @@ import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.graphics.Matrix
 import android.graphics.Point
 import android.graphics.PointF
+import android.graphics.RectF
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -13,6 +15,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.createBitmap
 import com.example.democropviewanddrag.databinding.ActivityMainNewBinding
+import kotlin.math.atan2
 
 
 class Main2Activity : AppCompatActivity() {
@@ -51,57 +54,98 @@ class Main2Activity : AppCompatActivity() {
         }
 
         // Đồng bộ tỷ lệ và vị trí của CropZoomView với vùng crop của CropImageView
-//        binding.cropView.viewTreeObserver.addOnGlobalLayoutListener {
-//            val cropRect = binding.cropView.mCropRectFClone
-//            if (cropRect.width() > 0 && cropRect.height() > 0) {
-//                // Cập nhật kích thước và vị trí của CropZoomView
-//                val layoutParams = binding.ivRotate.layoutParams
-//                layoutParams.width = cropRect.width().toInt()
-//                layoutParams.height = cropRect.height().toInt()
-//                binding.ivRotate.layoutParams = layoutParams
-//
-//                // Căn chỉnh vị trí của CropZoomView
-//                binding.ivRotate.x = cropRect.left
-//                binding.ivRotate.y = cropRect.top
-//
-//                // Điều chỉnh tỷ lệ của backgroundRect trong CropZoomView
-//                val ratio = cropRect.width() / cropRect.height()
-//                binding.ivRotate.adjustToRatio(ratio)
-//            }
-//        }
+        binding.cropView.viewTreeObserver.addOnGlobalLayoutListener {
+            val cropRect = binding.cropView.mCropRectFClone
+            if (cropRect.width() > 0 && cropRect.height() > 0) {
+                // Cập nhật kích thước và vị trí của CropZoomView
+                val layoutParams = binding.ivRotate.layoutParams
+                layoutParams.width = cropRect.width().toInt()
+                layoutParams.height = cropRect.height().toInt()
+                binding.ivRotate.layoutParams = layoutParams
+
+                // Căn chỉnh vị trí của CropZoomView
+                binding.ivRotate.x = cropRect.left
+                binding.ivRotate.y = cropRect.top
+
+                // Điều chỉnh tỷ lệ của backgroundRect trong CropZoomView
+                val ratio = cropRect.width() / cropRect.height()
+
+                binding.ivRotate.adjustToRatio(ratio)
+            }
+        }
     }
 
     private fun mergeBitmaps(): Bitmap? {
-        // Lấy bitmap từ CropImageView (ảnh nền đã crop)
-        val backgroundBitmap = binding.cropView.getCropBitmap() ?: return null
-
-        // Lấy bitmap và vị trí từ CropZoomView (ảnh trên nền)
+        val backgroundBitmap = binding.cropView.getAccurateCropBitmap() ?: return null
         val foregroundBitmap = binding.ivRotate.getBitmap() ?: return null
-        val foregroundPosition = binding.ivRotate.getBitmapPosition()
 
-        // Tạo bitmap kết quả với kích thước của ảnh nền
-        Log.e("TAG", "mergeBitmaps: bgBitmap => ${backgroundBitmap.width} - ${backgroundBitmap.height}")
-        val resultBitmap = createBitmap(backgroundBitmap.width, backgroundBitmap.height)
+        val resultBitmap = Bitmap.createBitmap(
+            backgroundBitmap.width,
+            backgroundBitmap.height,
+            Bitmap.Config.ARGB_8888
+        )
         val canvas = Canvas(resultBitmap)
 
-        // Vẽ ảnh nền lên canvas
+        // Vẽ ảnh nền
         canvas.drawBitmap(backgroundBitmap, 0f, 0f, null)
 
-        // Tính toán vị trí của ảnh trên nền dựa trên foregroundPosition
-        // foregroundPosition là tọa độ trong không gian của CropZoomView
-        // Cần điều chỉnh để khớp với kích thước của backgroundBitmap
-        val scaleX = backgroundBitmap.width.toFloat() / binding.cropView.width.toFloat()
-        val scaleY = backgroundBitmap.height.toFloat() / binding.cropView.height.toFloat()
-        val left = foregroundPosition.left * scaleX
-        val top = foregroundPosition.top * scaleY
+        // === Tính scale giữa cropView (view) và ảnh crop thật (bitmap) ===
+        val scaleX = backgroundBitmap.width.toFloat() / binding.cropView.width
+        val scaleY = backgroundBitmap.height.toFloat() / binding.cropView.height
 
-        // Vẽ ảnh trên nền lên canvas với vị trí đã điều chỉnh
-        Log.e("TAG", "mergeBitmaps: left-top => ${left} - ${top}")
+        // === Tính vị trí center của ivRotate (ảnh overlay) so với cropView ===
+        val cropViewLocation = IntArray(2)
+        val ivRotateLocation = IntArray(2)
 
-        canvas.drawBitmap(foregroundBitmap, left, top, null)
+        binding.cropView.getLocationOnScreen(cropViewLocation)
+        binding.ivRotate.getLocationOnScreen(ivRotateLocation)
+
+        val relativeCenterX = (ivRotateLocation[0] - cropViewLocation[0]) + binding.ivRotate.width / 2f
+        val relativeCenterY = (ivRotateLocation[1] - cropViewLocation[1]) + binding.ivRotate.height / 2f
+
+        // Chuyển sang toạ độ bitmap thật
+        val drawX = relativeCenterX * scaleX - foregroundBitmap.width / 2f
+        val drawY = relativeCenterY * scaleY - foregroundBitmap.height / 2f
+
+        // Vẽ ảnh foreground
+        canvas.drawBitmap(foregroundBitmap, drawX, drawY, null)
 
         return resultBitmap
     }
+    fun Bitmap.trimTransparent(): Bitmap {
+        val width = width
+        val height = height
+        var top = 0
+        var bottom = height
+
+        val pixels = IntArray(width * height)
+        getPixels(pixels, 0, width, 0, 0, width, height)
+
+        // Tìm phần trên
+        loop@ for (y in 0 until height) {
+            for (x in 0 until width) {
+                if (pixels[y * width + x] != 0) {
+                    top = y
+                    break@loop
+                }
+            }
+        }
+
+        // Tìm phần dưới
+        loop@ for (y in height - 1 downTo 0) {
+            for (x in 0 until width) {
+                if (pixels[y * width + x] != 0) {
+                    bottom = y
+                    break@loop
+                }
+            }
+        }
+
+        return Bitmap.createBitmap(this, 0, top, width, bottom - top)
+    }
+
+
+
 
     fun addWatermark(): Bitmap? {
 
