@@ -6,18 +6,20 @@
     android:orientation="vertical"
     android:paddingStart="16dp"
     android:paddingTop="16dp"
-    android:paddingEnd="16dp">
+    android:paddingEnd="16dp"
+    android:background="@drawable/ic_launcher_background">
 
     <FrameLayout
+        android:id="@+id/frameEditor"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
         <com.example.democropviewanddrag.customview.CropImageView
             android:id="@+id/cropView"
-            android:layout_width="300dp"
+            android:layout_width="match_parent"
             android:layout_height="300dp"
             android:layout_gravity="center_horizontal"
-            android:background="#FF0000"
+            android:background="@android:color/transparent"
             android:cropToPadding="true"
             android:paddingTop="20dp"
             android:paddingEnd="5dp"
@@ -30,13 +32,12 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-<!--        <com.example.democropviewanddrag.customview.v3.RotateScaleZoomTranslateImageView-->
-<!--            android:id="@+id/ivRotate"-->
-<!--            android:layout_width="match_parent"-->
-<!--            android:layout_height="match_parent"-->
-<!--            android:layout_gravity="center"-->
-<!--            android:src="@drawable/content"-->
-<!--            android:translationZ="100dp" />-->
+        <com.example.democropviewanddrag.customview.v2.CropZoomView
+            android:id="@+id/ivRotate"
+            android:layout_width="match_parent"
+            android:layout_height="300dp"
+            android:layout_gravity="center"
+            android:translationZ="100dp" />
     </FrameLayout>
 
     <ImageView

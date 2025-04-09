@@ -57,4 +57,22 @@ class RotateScaleZoomTranslateImageView @JvmOverloads constructor(
     override fun onTouchEvent(event: MotionEvent): Boolean {
         return mDetector.onTouchEvent(event)
     }
+
+    // Add method for 90-degree rotation
+    fun rotate90Degrees() {
+        mMatrix.postRotate(90f, width / 2f, height / 2f)
+        imageMatrix = mMatrix
+        mDetector.setMatrix(mMatrix)
+    }
+
+    // Add method for zooming (e.g., toggle between 1x and 2x)
+    fun toggleZoom() {
+        val values = FloatArray(9)
+        mMatrix.getValues(values)
+        val currentScale = values[Matrix.MSCALE_X]
+        val newScale = if (currentScale > 1f) 1f else 2f
+        mMatrix.postScale(newScale / currentScale, newScale / currentScale, width / 2f, height / 2f)
+        imageMatrix = mMatrix
+        mDetector.setMatrix(mMatrix)
+    }
 }

@@ -70,6 +70,7 @@ class CropImageView @JvmOverloads constructor(
     private var mHideCropLinesPathAnim: ValueAnimator? = null
     private var mCropLinesAnimDuration = DEFAULT_LINE_ANIM_DURATION
 
+    val mCropRectFClone get() = RectF(mCropRectF)
 
     private val mOnGestureListener = object : SimpleOnGestureListener() {
         override fun onScroll(
@@ -118,7 +119,7 @@ class CropImageView @JvmOverloads constructor(
         mCropRatioHeight = ta.getFloat(R.styleable.CropImageView_civ_crop_ratio_height, 1f)
         mCropLinesWidth = ta.getDimension(R.styleable.CropImageView_civ_crop_line_width, 4f)
         mCropBackground = ta.getColor(R.styleable.CropImageView_civ_crop_mask_color, DEFAULT_CROP_MASK_COLOR)
-        mCropRectBorderWidth = ta.getDimension(R.styleable.CropImageView_civ_crop_border_width, 30f)
+        mCropRectBorderWidth = ta.getDimension(R.styleable.CropImageView_civ_crop_border_width, 2f)
         mCropRectBorderColor = ta.getColor(R.styleable.CropImageView_civ_crop_border_color, Color.WHITE)
         ta.recycle()
 
