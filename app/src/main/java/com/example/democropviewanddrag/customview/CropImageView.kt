@@ -561,7 +561,15 @@ class CropImageView @JvmOverloads constructor(
         if (drawable == null) return null
 
         // Bước 1: Vẽ toàn bộ view thành bitmap
-        val fullBitmap = this.drawToBitmap(config)
+        val fullBitmap = try {
+            this.drawToBitmap(config)
+        }catch (e: OutOfMemoryError){
+            e.printStackTrace()
+            null
+        }catch (e: Exception){
+            e.printStackTrace()
+            null
+        } ?: return null
 
         // Bước 2: Xác định vùng crop chính xác trong bitmap của view
         val scaleX = fullBitmap.width.toFloat() / this.width
