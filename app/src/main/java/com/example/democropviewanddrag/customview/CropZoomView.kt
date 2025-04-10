@@ -9,6 +9,7 @@ import android.view.View
 import com.example.democropviewanddrag.R
 import kotlin.math.atan2
 import androidx.core.graphics.createBitmap
+import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.sqrt
 
@@ -44,6 +45,13 @@ class CropZoomView @JvmOverloads constructor(
 
     private var zoomStartX = 0f
     private var initialMatrixScale = 1f
+
+    // Ngưỡng di chuyển xác định là click (tùy chỉnh nếu cần)
+    private val CLICK_THRESHOLD = 10f
+
+    // Biến lưu vị trí ban đầu tại ACTION_DOWN
+    private var downX = 0f
+    private var downY = 0f
 
     init {
         setWillNotDraw(false)
@@ -141,14 +149,15 @@ class CropZoomView @JvmOverloads constructor(
 
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
+                downX = x
+                downY = y
+
                 when {
                     isInRotateIcon(x, y) -> {
-                        isSelected = true
                         isRotating = true
                         initialRotation = calculateRotationAngle(x, y)
                     }
                     isInZoomIcon(x, y) -> {
-                        isSelected = true
                         isZooming = true
                         // Lưu tọa độ ban đầu của ngón tay
                         zoomStartX = x
@@ -156,17 +165,18 @@ class CropZoomView @JvmOverloads constructor(
                         initialMatrixScale = getCurrentScaleFromMatrix(imageMatrix)
                     }
                     backgroundRect.contains(x, y) -> {
-                        isSelected = true
                         isDraggingView = true
                         dragStartX = x - backgroundRect.left
                         dragStartY = y - backgroundRect.top
                     }
                     else -> {
+                        // Nếu chạm ngoài vùng hợp lệ thì không chọn
                         isSelected = false
                     }
                 }
                 invalidate()
             }
+
             MotionEvent.ACTION_MOVE -> {
                 if (isRotating) {
                     val newRotation = calculateRotationAngle(x, y)
@@ -205,9 +215,18 @@ class CropZoomView @JvmOverloads constructor(
                 isRotating = false
                 isZooming = false
                 isDraggingView = false
+
+                val deltaX = abs(x - downX)
+                val deltaY = abs(y - downY)
+                if (deltaX < CLICK_THRESHOLD && deltaY < CLICK_THRESHOLD) {
+                    isSelected = !isSelected
+                    updateBackgroundRect()
+                    invalidate()
+                }
             }
         }
-        return true
+
+        return backgroundRect.contains(x, y) || isInRotateIcon(x, y) || isInZoomIcon(x, y)
     }
 
     fun getCurrentScaleFromMatrix(matrix: Matrix): Float {
