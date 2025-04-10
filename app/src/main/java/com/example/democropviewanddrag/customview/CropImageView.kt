@@ -142,7 +142,7 @@ class CropImageView @JvmOverloads constructor(
     }
 
 
-    //region 重写方法
+    //region Rewrite method
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
@@ -415,7 +415,7 @@ class CropImageView @JvmOverloads constructor(
     }
 
     private fun update() {
-        //这里必须判空，该方法调用时,类肯还未初始化完成
+        //This must be empty. When this method is called, the class has not yet been initialized.
         if (mSuppMatrix != null) {
             if (mScaleEnable) {
                 updateBaseMatrix()
