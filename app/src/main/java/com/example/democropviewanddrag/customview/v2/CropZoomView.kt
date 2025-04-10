@@ -235,7 +235,7 @@ class CropZoomView @JvmOverloads constructor(
         return Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
     }
 
-    fun getBitmap(width : Int? = null, height : Int? = 0): Bitmap? {
+    fun getBitmap(width : Int? = null, height : Int? = null): Bitmap? {
         imageBitmap?.let { bitmap ->
             // Tạo bitmap mới với kích thước gốc của ảnh
             val resultBitmap = createBitmap(
