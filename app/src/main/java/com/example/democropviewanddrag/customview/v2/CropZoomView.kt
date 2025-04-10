@@ -40,6 +40,7 @@ class CropZoomView @JvmOverloads constructor(
     private var dragStartY = 0f
     private var initialRotation = 0f // Góc xoay ban đầu
     private var initialScale = 1f // Tỷ lệ zoom ban đầu
+    private var newBitmap : Bitmap? = null // Ảnh biến đổi
 
     init {
         setWillNotDraw(false)
@@ -77,6 +78,7 @@ class CropZoomView @JvmOverloads constructor(
 
         // Vẽ ảnh
         imageBitmap?.let {
+            newBitmap = it
             canvas.drawBitmap(it, imageMatrix, imagePaint)
         }
 
@@ -107,44 +109,42 @@ class CropZoomView @JvmOverloads constructor(
         }
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val x = event.x
         val y = event.y
 
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
-                val x = event.x
-                val y = event.y
+                Log.e("TAG", "onTouchEvent: inRotate::${isInRotateIcon(x, y)} -- inZoom${isInZoomIcon(x, y)}", )
+                when{
+                    isInRotateIcon(x, y) -> {
+                        isSelected = true
+                        isRotating = true
+                        initialRotation = calculateRotationAngle(x, y)
+                    }
 
-                // Kiểm tra chạm vào icon rotate trước
-                if (isInRotateIcon(x, y)) {
-                    isSelected = true
-                    isRotating = true
-                    initialRotation = calculateRotationAngle(x, y)
-                    invalidate()
+                    (isInZoomIcon(x, y)) -> {
+                        isSelected = true
+                        isZooming = true
+                        initialScale = 1f
+                    }
+                    (backgroundRect.contains(x, y)) -> {
+                        isSelected = true
+                        isDraggingView = true
+                        dragStartX = x - backgroundRect.left
+                        dragStartY = y - backgroundRect.top
+                    }
+                    else -> {
+                        isSelected = false
+                    }
                 }
-                // Kiểm tra chạm vào icon zoom
-                else if (isInZoomIcon(x, y)) {
-                    isSelected = true
-                    isZooming = true
-                    initialScale = 1f
-                    invalidate()
-                }
-                // Kiểm tra chạm vào khung để kéo thả
-                else if (backgroundRect.contains(x, y)) {
-                    isSelected = true
-                    isDraggingView = true
-                    dragStartX = x - backgroundRect.left
-                    dragStartY = y - backgroundRect.top
-                    invalidate()
-                }
-                // Chạm ra ngoài cả icon và khung thì ẩn
-                else {
-                    isSelected = false
-                    invalidate()
-                }
+                invalidate()
             }
             MotionEvent.ACTION_MOVE -> {
+                Log.e("TAG", "onTouchEvent: ACTION_MOVE inRotate::${isInRotateIcon(x, y)} -- inZoom${isInZoomIcon(x, y)}", )
+                Log.e("TAG", "onTouchEvent: ACTION_MOVE isRotating::${isRotating} -- isZooming${isZooming}", )
+
                 if (isRotating) {
                     // Xoay ảnh
                     val newRotation = calculateRotationAngle(x, y)
@@ -226,7 +226,7 @@ class CropZoomView @JvmOverloads constructor(
     fun getBitmap(): Bitmap? {
         imageBitmap?.let { bitmap ->
             // Tạo bitmap mới với kích thước gốc của ảnh
-            val resultBitmap = createBitmap(bitmap.width, bitmap.height)
+            val resultBitmap = createBitmap(bitmap.width+ 60, bitmap.height + 30)
             val canvas = Canvas(resultBitmap)
 
             // Áp dụng ma trận biến đổi lên canvas
