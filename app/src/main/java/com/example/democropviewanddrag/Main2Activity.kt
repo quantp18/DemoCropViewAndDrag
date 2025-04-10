@@ -147,7 +147,7 @@ class Main2Activity : AppCompatActivity() {
     }
 
 
-    fun addWatermark(): Bitmap? {
+    private fun addWatermark(): Bitmap? {
 
         val mergedBitmap = mergeBitmaps() ?: return null
 

@@ -11,6 +11,8 @@ import androidx.core.content.ContextCompat
 import com.example.democropviewanddrag.R
 import kotlin.math.atan2
 import androidx.core.graphics.createBitmap
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 class CropZoomView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
@@ -41,6 +43,9 @@ class CropZoomView @JvmOverloads constructor(
     private var initialRotation = 0f // Góc xoay ban đầu
     private var initialScale = 1f // Tỷ lệ zoom ban đầu
     private var newBitmap : Bitmap? = null // Ảnh biến đổi
+
+    private var zoomStartX = 0f
+    private var initialMatrixScale = 1f
 
     init {
         setWillNotDraw(false)
@@ -116,20 +121,21 @@ class CropZoomView @JvmOverloads constructor(
 
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
-                Log.e("TAG", "onTouchEvent: inRotate::${isInRotateIcon(x, y)} -- inZoom${isInZoomIcon(x, y)}", )
-                when{
+                when {
                     isInRotateIcon(x, y) -> {
                         isSelected = true
                         isRotating = true
                         initialRotation = calculateRotationAngle(x, y)
                     }
-
-                    (isInZoomIcon(x, y)) -> {
+                    isInZoomIcon(x, y) -> {
                         isSelected = true
                         isZooming = true
-                        initialScale = 1f
+                        // Lưu tọa độ ban đầu của ngón tay
+                        zoomStartX = x
+                        // Giả sử bạn có lưu trạng thái scale hiện tại của ma trận ảnh
+                        initialMatrixScale = getCurrentScaleFromMatrix(imageMatrix)
                     }
-                    (backgroundRect.contains(x, y)) -> {
+                    backgroundRect.contains(x, y) -> {
                         isSelected = true
                         isDraggingView = true
                         dragStartX = x - backgroundRect.left
@@ -142,11 +148,7 @@ class CropZoomView @JvmOverloads constructor(
                 invalidate()
             }
             MotionEvent.ACTION_MOVE -> {
-                Log.e("TAG", "onTouchEvent: ACTION_MOVE inRotate::${isInRotateIcon(x, y)} -- inZoom${isInZoomIcon(x, y)}", )
-                Log.e("TAG", "onTouchEvent: ACTION_MOVE isRotating::${isRotating} -- isZooming${isZooming}", )
-
                 if (isRotating) {
-                    // Xoay ảnh
                     val newRotation = calculateRotationAngle(x, y)
                     val deltaRotation = newRotation - initialRotation
                     imageMatrix.postRotate(deltaRotation, backgroundRect.centerX(), backgroundRect.centerY())
@@ -154,35 +156,45 @@ class CropZoomView @JvmOverloads constructor(
                     updateBackgroundRect()
                     invalidate()
                 } else if (isZooming) {
-                    // Phóng to/thu nhỏ ảnh
-                    val deltaX = x - backgroundRect.centerX()
-                    val scaleFactor = 1f + (deltaX / 100f) // Điều chỉnh hệ số zoom
+                    // Tính khoảng cách di chuyển từ vị trí ban đầu
+                    val deltaX = x - zoomStartX
+                    // Tỷ lệ zoom ban đầu dựa trên khoảng cách di chuyển (điều chỉnh hệ số nếu cần)
+                    val scaleFactor = 1f + (deltaX / 100f)
+                    // Tính toán scale mới dựa trên scale ban đầu của ma trận
+                    val finalScaleFactor = initialMatrixScale * scaleFactor
+                    // Lấy hệ số scale hiện tại (nếu cần để tính tỉ lệ update tiếp theo)
+                    val currentScale = getCurrentScaleFromMatrix(imageMatrix)
+                    // Áp dụng scale dựa trên tỉ lệ so với giá trị hiện tại
                     imageMatrix.postScale(
-                        scaleFactor / initialScale, scaleFactor / initialScale,
+                        finalScaleFactor / currentScale, finalScaleFactor / currentScale,
                         backgroundRect.centerX(), backgroundRect.centerY()
                     )
-                    initialScale = scaleFactor
                     updateBackgroundRect()
                     invalidate()
                 } else if (isDraggingView) {
-                    // Kéo thả view
                     val newLeft = x - dragStartX
                     val newTop = y - dragStartY
                     val dx = newLeft - backgroundRect.left
                     val dy = newTop - backgroundRect.top
                     backgroundRect.offset(dx, dy)
-                    imageMatrix.postTranslate(dx, dy) // Di chuyển ảnh theo
+                    imageMatrix.postTranslate(dx, dy)
                     invalidate()
                 }
             }
             MotionEvent.ACTION_UP -> {
-                // Kết thúc thao tác
                 isRotating = false
                 isZooming = false
                 isDraggingView = false
             }
         }
         return true
+    }
+
+    fun getCurrentScaleFromMatrix(matrix: Matrix): Float {
+        val values = FloatArray(9)
+        matrix.getValues(values)
+        // MSCALE_X = values[0], MSKEW_Y = values[3]
+        return sqrt(values[0].toDouble().pow(2.0) + values[3].toDouble().pow(2.0)).toFloat()
     }
 
     // Kiểm tra vị trí click có nằm trong icon rotate không
@@ -240,31 +252,10 @@ class CropZoomView @JvmOverloads constructor(
         }
         return null
     }
-//    fun getBitmapPosition(): RectF {
-//        val rect = RectF(0f, 0f, imageBitmap?.width?.toFloat() ?: 0f, imageBitmap?.height?.toFloat() ?: 0f)
-//        imageMatrix.mapRect(rect)
-//        return rect
-//    }
 
     fun getBitmapPosition(): RectF {
         val rect = RectF(backgroundRect)
         imageMatrix.mapRect(rect)
         return rect
     }
-
-    fun adjustToRatio(ratio: Float) {
-        // Điều chỉnh backgroundRect để có cùng tỷ lệ với vùng crop
-//        val newWidth = backgroundRect.height() * ratio
-//        backgroundRect.right = backgroundRect.left + newWidth
-
-        // Cập nhật ma trận hình ảnh để khớp với backgroundRect mới
-        imageBitmap?.let { bitmap ->
-            imageMatrix.reset()
-            val scale = minOf(backgroundRect.width() / bitmap.width, backgroundRect.height() / bitmap.height)
-            imageMatrix.postScale(scale, scale)
-            imageMatrix.postTranslate(backgroundRect.left, backgroundRect.top)
-        }
-        invalidate()
-    }
-
 }
