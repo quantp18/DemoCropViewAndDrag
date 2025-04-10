@@ -565,9 +565,10 @@ class CropImageView @JvmOverloads constructor(
         return bitmap
     }
 
-    fun getAccurateCropBitmap(config: Bitmap.Config = Bitmap.Config.ARGB_8888): Bitmap? {
+    fun getAccurateCropBitmap(haveBorder : Boolean = false, config: Bitmap.Config = Bitmap.Config.ARGB_8888): Bitmap? {
         if (drawable == null) return null
-
+        val currentBorder = mCornerRadius
+        if (!haveBorder) setCornerRadius(0f)
         // Bước 1: Vẽ toàn bộ view thành bitmap
         val fullBitmap = try {
             this.drawToBitmap(config)
@@ -592,7 +593,7 @@ class CropImageView @JvmOverloads constructor(
             Log.e("Crop", "Out of bounds crop area")
             return null
         }
-
+        if (!haveBorder) setCornerRadius(currentBorder)
         return Bitmap.createBitmap(fullBitmap, left, top, width, height)
     }
 

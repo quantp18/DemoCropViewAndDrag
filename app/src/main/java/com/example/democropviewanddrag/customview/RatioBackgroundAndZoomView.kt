@@ -81,6 +81,10 @@ class RatioBackgroundAndZoomView @JvmOverloads constructor(
         safeRun({ backgroundImageView!!.setCropRatio(width, height) }, onError)
     }
 
+    fun setBackgroundRadius(radius: Float, onError: (Exception) -> Unit = {}) {
+        safeRun({ backgroundImageView!!.setCornerRadius(radius) }, onError)
+    }
+
     /**
      * Set image for foreground/content
      * */
@@ -119,8 +123,8 @@ class RatioBackgroundAndZoomView @JvmOverloads constructor(
      **/
 
     /**Get background bitmap */
-    fun getBackgroundBitmap(): Bitmap? {
-        return backgroundImageView?.getAccurateCropBitmap()
+    fun getBackgroundBitmap(haveBorder: Boolean = false): Bitmap? {
+        return backgroundImageView?.getAccurateCropBitmap(haveBorder)
     }
 
     /**Get foreground bitmap */
@@ -129,9 +133,9 @@ class RatioBackgroundAndZoomView @JvmOverloads constructor(
     }
 
     /**Merge background image with foreground image*/
-    fun getResultBitmap(): Bitmap? {
+    fun getResultBitmap(haveBorder: Boolean = false): Bitmap? {
         return try {
-            val backgroundBitmap = getBackgroundBitmap() ?: return null
+            val backgroundBitmap = getBackgroundBitmap(haveBorder) ?: return null
             val foregroundBitmap =
                 getForegroundBitmap(backgroundBitmap.width, backgroundBitmap.height) ?: return null
             val resultBitmap = createBitmap(backgroundBitmap.width, backgroundBitmap.height)
@@ -143,10 +147,10 @@ class RatioBackgroundAndZoomView @JvmOverloads constructor(
             }
 
             resultBitmap
-        }catch (e: OutOfMemoryError) {
+        } catch (e: OutOfMemoryError) {
             e.printStackTrace()
             null
-        }catch (e: Exception){
+        } catch (e: Exception) {
             e.printStackTrace()
             null
         }

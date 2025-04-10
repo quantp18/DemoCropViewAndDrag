@@ -5,10 +5,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import com.example.democropviewanddrag.databinding.ActivityTestGroupCustomViewBinding
 import com.example.democropviewanddrag.extension.addWatermark
+import com.example.democropviewanddrag.model.PaddingWatermark
 
 class TestGroupCustomViewActivity : AppCompatActivity() {
 
-    private var binding : ActivityTestGroupCustomViewBinding? = null
+    private var binding: ActivityTestGroupCustomViewBinding? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -17,7 +18,7 @@ class TestGroupCustomViewActivity : AppCompatActivity() {
 
 
         binding?.apply {
-            viewEditor.setBackgroundImageResource(R.drawable.content2)
+            viewEditor.setBackgroundImageResource(R.drawable.bg_remove)
             viewEditor.setForegroundImageResource(R.drawable.content)
 
             btn1.setOnClickListener {
@@ -41,7 +42,16 @@ class TestGroupCustomViewActivity : AppCompatActivity() {
             }
 
             btnWatermark.setOnClickListener {
-                ivPreview.setImageBitmap(viewEditor.getResultBitmap().addWatermark(resources))
+                ivPreview.setImageBitmap(
+                    viewEditor.getResultBitmap().addWatermark(
+                        resources = resources,
+                        paddingValue = PaddingWatermark(bottom = 16, right = 16)
+                    )
+                )
+            }
+
+            btnSetBorder.setOnClickListener {
+                viewEditor.setBackgroundRadius(0f)
             }
         }
     }
