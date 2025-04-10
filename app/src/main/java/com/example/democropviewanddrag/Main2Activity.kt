@@ -24,7 +24,7 @@ class Main2Activity : AppCompatActivity() {
         binding = ActivityMainNewBinding.inflate(layoutInflater)
 
         setContentView(binding.root)
-        binding.ivRotate.setImageFromResource(R.drawable.content2)
+        binding.ivRotate.setImageFromResource(R.drawable.content)
 
         binding.btnCrop.setOnClickListener {
             binding.ivRotate.setImageFromResource(R.drawable.content2)
@@ -32,6 +32,7 @@ class Main2Activity : AppCompatActivity() {
         binding.btn1.setOnClickListener {
             binding.cropView.setCropRatio(1f, 1f)
         }
+
         binding.btn2.setOnClickListener {
             binding.cropView.setCropRatio(2f, 3f)
         }
@@ -69,7 +70,7 @@ class Main2Activity : AppCompatActivity() {
                 // Điều chỉnh tỷ lệ của backgroundRect trong CropZoomView
                 val ratio = cropRect.width() / cropRect.height()
 
-                binding.ivRotate.adjustToRatio(ratio)
+//                binding.ivRotate.adjustToRatio(ratio)
             }
         }
     }
