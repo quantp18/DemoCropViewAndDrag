@@ -4,18 +4,12 @@ import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
-import android.graphics.Matrix
-import android.graphics.Point
-import android.graphics.PointF
-import android.graphics.RectF
 import android.os.Bundle
 import android.util.Log
-import android.view.View
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.createBitmap
 import com.example.democropviewanddrag.databinding.ActivityMainNewBinding
-import kotlin.math.atan2
 
 
 class Main2Activity : AppCompatActivity() {
@@ -82,7 +76,9 @@ class Main2Activity : AppCompatActivity() {
 
     private fun mergeBitmaps(): Bitmap? {
         val backgroundBitmap = binding.cropView.getAccurateCropBitmap() ?: return null
-        val foregroundBitmap = binding.ivRotate.getBitmap(backgroundBitmap.width, backgroundBitmap.height) ?: return null
+        val foregroundBitmap =
+            binding.ivRotate.getBitmap(backgroundBitmap.width, backgroundBitmap.height)
+                ?: return null
 
         val resultBitmap = createBitmap(backgroundBitmap.width, backgroundBitmap.height)
         val canvas = Canvas(resultBitmap)
@@ -90,7 +86,7 @@ class Main2Activity : AppCompatActivity() {
         canvas.drawBitmap(backgroundBitmap, 0f, 0f, null)
         canvas.drawBitmap(foregroundBitmap, 0f, 0f, null)
 
-        Log.e("TAG", "mergeBitmaps: ", )
+        Log.e("TAG", "mergeBitmaps: ")
 
         return resultBitmap
     }
@@ -155,9 +151,6 @@ class Main2Activity : AppCompatActivity() {
     }
 
 
-
-
-
     fun addWatermark(): Bitmap? {
 
         val mergedBitmap = mergeBitmaps() ?: return null
@@ -168,7 +161,7 @@ class Main2Activity : AppCompatActivity() {
 
         val canvas = Canvas(resultBitmap)
 
-        canvas.drawBitmap(mergedBitmap,0f,0f, null)
+        canvas.drawBitmap(mergedBitmap, 0f, 0f, null)
 
         canvas.drawBitmap(
             watermarkBitmap,
