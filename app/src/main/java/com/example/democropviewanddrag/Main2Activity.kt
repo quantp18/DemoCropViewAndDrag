@@ -66,11 +66,6 @@ class Main2Activity : AppCompatActivity() {
                 // Căn chỉnh vị trí của CropZoomView
                 binding.ivRotate.x = cropRect.left
                 binding.ivRotate.y = cropRect.top
-
-                // Điều chỉnh tỷ lệ của backgroundRect trong CropZoomView
-                val ratio = cropRect.width() / cropRect.height()
-
-//                binding.ivRotate.adjustToRatio(ratio)
             }
         }
     }
