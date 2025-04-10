@@ -3,8 +3,8 @@ package com.example.democropviewanddrag
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import com.example.democropviewanddrag.customview.addWatermark
 import com.example.democropviewanddrag.databinding.ActivityTestGroupCustomViewBinding
+import com.example.democropviewanddrag.extension.addWatermark
 
 class TestGroupCustomViewActivity : AppCompatActivity() {
 

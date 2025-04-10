@@ -1,13 +1,11 @@
-package com.example.democropviewanddrag.customview.v2
+package com.example.democropviewanddrag.customview
 
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.*
 import android.util.AttributeSet
-import android.util.Log
 import android.view.MotionEvent
 import android.view.View
-import androidx.core.content.ContextCompat
 import com.example.democropviewanddrag.R
 import kotlin.math.atan2
 import androidx.core.graphics.createBitmap
@@ -57,6 +55,28 @@ class CropZoomView @JvmOverloads constructor(
     // Đặt ảnh từ resource
     fun setImageFromResource(resourceId: Int) {
         imageBitmap = BitmapFactory.decodeResource(resources, resourceId)
+        imageBitmap?.let { bitmap ->
+            // Tính toán tỷ lệ của ảnh
+            val imageRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
+
+            // Điều chỉnh backgroundRect để có cùng tỷ lệ với ảnh
+            // Giữ chiều cao, điều chỉnh chiều rộng
+            val newWidth = backgroundRect.height() * imageRatio
+            backgroundRect.right = backgroundRect.left + newWidth
+
+            // Thiết lập ma trận để ảnh vừa với backgroundRect
+            imageMatrix.reset()
+            val scale = minOf(backgroundRect.width() / bitmap.width, backgroundRect.height() / bitmap.height)
+            imageMatrix.postScale(scale, scale)
+            imageMatrix.postTranslate(backgroundRect.left, backgroundRect.top)
+
+            // Cập nhật giao diện
+            invalidate()
+        }
+    }
+
+    fun setImageBitmap(bm: Bitmap?) {
+        imageBitmap = bm
         imageBitmap?.let { bitmap ->
             // Tính toán tỷ lệ của ảnh
             val imageRatio = bitmap.width.toFloat() / bitmap.height.toFloat()

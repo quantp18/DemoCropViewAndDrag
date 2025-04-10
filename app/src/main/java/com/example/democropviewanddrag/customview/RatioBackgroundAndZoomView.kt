@@ -1,17 +1,14 @@
 package com.example.democropviewanddrag.customview
 
 import android.content.Context
-import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.net.Uri
 import android.util.AttributeSet
-import android.util.Log
 import android.view.LayoutInflater
 import android.widget.FrameLayout
 import androidx.core.graphics.createBitmap
-import com.example.democropviewanddrag.R
-import com.example.democropviewanddrag.customview.v2.CropZoomView
 import com.example.democropviewanddrag.databinding.LayoutRatioBackgroundWithZoomviewBinding
 
 class RatioBackgroundAndZoomView @JvmOverloads constructor(
@@ -29,7 +26,11 @@ class RatioBackgroundAndZoomView @JvmOverloads constructor(
     }
 
     private fun initView() {
-        binding = LayoutRatioBackgroundWithZoomviewBinding.inflate(LayoutInflater.from(context), this, true)
+        binding = LayoutRatioBackgroundWithZoomviewBinding.inflate(
+            LayoutInflater.from(context),
+            this,
+            true
+        )
         backgroundImageView = binding!!.cropView
         foregroundImageView = binding!!.ivRotate
     }
@@ -58,22 +59,52 @@ class RatioBackgroundAndZoomView @JvmOverloads constructor(
      * Set image for background
      * */
     fun setBackgroundImageResource(resId: Int, onError: (Exception) -> Unit = {}) {
-        runCatchException({ backgroundImageView!!.setImageResource(resId) }, onError)
+        safeRun({ backgroundImageView!!.setImageResource(resId) }, onError)
+    }
+
+    fun setBackgroundImageFile(path: String, onError: (Exception) -> Unit = {}) {
+        safeRun({
+            val bitmap = BitmapFactory.decodeFile(path)
+            backgroundImageView?.setImageBitmap(bitmap)
+        }, onError)
+    }
+
+    fun setBackgroundImageUri(uri: Uri, onError: (Exception) -> Unit = {}) {
+        safeRun({
+            val inputStream = context.contentResolver.openInputStream(uri)
+            val bitmap = BitmapFactory.decodeStream(inputStream)
+            backgroundImageView?.setImageBitmap(bitmap)
+        }, onError)
     }
 
     fun setCropRatioForBackground(width: Float, height: Float, onError: (Exception) -> Unit = {}) {
-        runCatchException({ backgroundImageView!!.setCropRatio(width, height) }, onError)
+        safeRun({ backgroundImageView!!.setCropRatio(width, height) }, onError)
     }
 
     /**
      * Set image for foreground/content
      * */
     fun setForegroundImageResource(resId: Int, onError: (Exception) -> Unit = {}) {
-        runCatchException({ foregroundImageView!!.setImageFromResource(resId) }, onError)
+        safeRun({ foregroundImageView!!.setImageFromResource(resId) }, onError)
+    }
+
+    fun setForegroundImageFile(path: String, onError: (Exception) -> Unit = {}) {
+        safeRun({
+            val bitmap = BitmapFactory.decodeFile(path)
+            foregroundImageView!!.setImageBitmap(bitmap)
+        }, onError)
+    }
+
+    fun setForegroundImageUri(uri: Uri, onError: (Exception) -> Unit = {}) {
+        safeRun({
+            val inputStream = context.contentResolver.openInputStream(uri)
+            val bitmap = BitmapFactory.decodeStream(inputStream)
+            foregroundImageView!!.setImageBitmap(bitmap)
+        }, onError)
     }
 
 
-    private fun runCatchException(block: () -> Unit = { }, onError: (Exception) -> Unit = {}) {
+    private fun safeRun(block: () -> Unit = { }, onError: (Exception) -> Unit = {}) {
         try {
             block()
         } catch (e: OutOfMemoryError) {
@@ -87,50 +118,37 @@ class RatioBackgroundAndZoomView @JvmOverloads constructor(
      * Handle Result
      **/
 
+    /**Get background bitmap */
+    fun getBackgroundBitmap(): Bitmap? {
+        return backgroundImageView?.getAccurateCropBitmap()
+    }
+
+    /**Get foreground bitmap */
+    fun getForegroundBitmap(width: Int? = null, height: Int? = null): Bitmap? {
+        return foregroundImageView?.getBitmap(width, height)
+    }
+
     /**Merge background image with foreground image*/
     fun getResultBitmap(): Bitmap? {
-        val backgroundBitmap = backgroundImageView?.getAccurateCropBitmap() ?: return null
-        val foregroundBitmap =
-            foregroundImageView?.getBitmap(backgroundBitmap.width, backgroundBitmap.height)
-                ?: return null
-        val resultBitmap = createBitmap(backgroundBitmap.width, backgroundBitmap.height)
+        return try {
+            val backgroundBitmap = getBackgroundBitmap() ?: return null
+            val foregroundBitmap =
+                getForegroundBitmap(backgroundBitmap.width, backgroundBitmap.height) ?: return null
+            val resultBitmap = createBitmap(backgroundBitmap.width, backgroundBitmap.height)
 
-        return resultBitmap.apply {
-            val canvas = Canvas(this)
-            canvas.drawBitmap(backgroundBitmap, 0f, 0f, null)
-            canvas.drawBitmap(foregroundBitmap, 0f, 0f, null)
-        }
-    }
-}
+            resultBitmap.apply {
+                val canvas = Canvas(this)
+                canvas.drawBitmap(backgroundBitmap, 0f, 0f, null)
+                canvas.drawBitmap(foregroundBitmap, 0f, 0f, null)
+            }
 
-/** Add watermark for result bitmap*/
-fun Bitmap?.addWatermark(
-    resources: Resources,
-    resId: Int = R.drawable.bg_watermark
-): Bitmap? {
-    val originalBitmap = this ?: return null
-
-    return try {
-        val resultBitmap = createBitmap(originalBitmap.width, originalBitmap.height)
-
-        val watermark = BitmapFactory.decodeResource(resources, resId)
-        if (watermark == null) {
-            Log.e("Watermark", "Invalid watermark resource")
-            return null
-        }
-
-        val canvas = Canvas(resultBitmap)
-        canvas.drawBitmap(originalBitmap, 0f, 0f, null)
-        canvas.drawBitmap(
-            watermark,
-            (originalBitmap.width - watermark.width).toFloat(),
-            (originalBitmap.height - watermark.height).toFloat(),
+            resultBitmap
+        }catch (e: OutOfMemoryError) {
+            e.printStackTrace()
             null
-        )
-
-        resultBitmap
-    } catch (e: Throwable) {
-        e.printStackTrace()
-        null
+        }catch (e: Exception){
+            e.printStackTrace()
+            null
+        }
     }
 }

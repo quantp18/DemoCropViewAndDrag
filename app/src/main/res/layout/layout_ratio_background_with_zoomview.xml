@@ -22,7 +22,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <com.example.democropviewanddrag.customview.v2.CropZoomView
+    <com.example.democropviewanddrag.customview.CropZoomView
         android:id="@+id/ivRotate"
         android:layout_width="match_parent"
         android:layout_height="300dp"
