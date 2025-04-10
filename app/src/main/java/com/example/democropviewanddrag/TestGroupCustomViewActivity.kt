@@ -25,6 +25,10 @@ class TestGroupCustomViewActivity : AppCompatActivity() {
                 viewEditor.setCropRatioForBackground(1f, 1f)
             }
 
+            btnCrop.setOnClickListener {
+                viewEditor.setCropRatioForBackground(5f, 4f)
+            }
+
             btn2.setOnClickListener {
                 viewEditor.setCropRatioForBackground(2f, 3f)
             }

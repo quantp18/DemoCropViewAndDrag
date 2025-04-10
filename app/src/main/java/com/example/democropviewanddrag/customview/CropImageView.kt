@@ -23,6 +23,9 @@ import com.example.democropviewanddrag.R
 import kotlin.math.roundToInt
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withMatrix
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 
 class CropImageView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
@@ -74,6 +77,17 @@ class CropImageView @JvmOverloads constructor(
     private var mShowCropLinesPathAnim: ValueAnimator? = null
     private var mHideCropLinesPathAnim: ValueAnimator? = null
     private var mCropLinesAnimDuration = DEFAULT_LINE_ANIM_DURATION
+
+    private val touchAreaSize = 40f  // vùng nhạy để bắt drag (có thể tùy chỉnh)
+
+    private enum class DragCorner {
+        NONE, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT
+    }
+
+    private var activeDragCorner = DragCorner.NONE
+    private var lastTouchX = 0f
+    private var lastTouchY = 0f
+
 
     val mCropRectFClone get() = RectF(mCropRectF)
 
@@ -159,24 +173,78 @@ class CropImageView @JvmOverloads constructor(
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        val action = event.actionMasked
-        if (action == MotionEvent.ACTION_DOWN) {
-            parent.requestDisallowInterceptTouchEvent(true)
-            mUpAnim?.cancel()
-            if (mShowCropLine) {
-                showCliPath()
+        val x = event.x
+        val y = event.y
+
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                parent.requestDisallowInterceptTouchEvent(true)
+                mUpAnim?.cancel()
+                if (mShowCropLine) showCliPath()
+
+                activeDragCorner = detectTouchCorner(x, y)
+                lastTouchX = x
+                lastTouchY = y
             }
+
+            MotionEvent.ACTION_MOVE -> {
+                if (activeDragCorner != DragCorner.NONE) {
+                    val dx = x - lastTouchX
+                    val dy = y - lastTouchY
+                    resizeCropRect(dx, dy, activeDragCorner)
+                    lastTouchX = x
+                    lastTouchY = y
+                    invalidate()
+                    return true
+                }
+            }
+
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                if (activeDragCorner != DragCorner.NONE) {
+                    activeDragCorner = DragCorner.NONE
+                    hideClipPath()
+
+                    // Lấy tỷ lệ mới từ crop rect sau khi kéo
+                    val newRatio = mCropRectBorderRectF.width() / mCropRectBorderRectF.height()
+                    val (w, h) = floatToFraction(newRatio)
+
+                    Log.e("TAG", "floatToFraction: w: $w - h : $h", )
+                    // Cập nhật tỷ lệ mới
+                    setCropRatio(w.toFloat(), h.toFloat())
+
+                    return true
+                }
+
+                scaleAndTranslateToCenter()
+                hideClipPath()
+                mLastScaleFocusX = 0f
+                mLastScaleFocusY = 0f
+                parent.requestDisallowInterceptTouchEvent(false)
+            }
+
         }
+
         mGestureDetector.onTouchEvent(event)
         mScaleGestureDetector.onTouchEvent(event)
-        if (event.actionMasked == MotionEvent.ACTION_UP) {
-            scaleAndTranslateToCenter()
-            hideClipPath()
-            mLastScaleFocusX = 0f
-            mLastScaleFocusY = 0f
-            parent.requestDisallowInterceptTouchEvent(false)
-        }
         return true
+    }
+
+    fun floatToFraction(value: Float, maxDenominator: Int = 100): Pair<Int, Int> {
+        var bestNumerator = 1
+        var bestDenominator = 1
+        var bestError = Math.abs(value - bestNumerator.toFloat() / bestDenominator)
+
+        for (denominator in 1..maxDenominator) {
+            val numerator = Math.round(value * denominator)
+            val error = Math.abs(value - numerator.toFloat() / denominator)
+            if (error < bestError) {
+                bestNumerator = numerator
+                bestDenominator = denominator
+                bestError = error
+            }
+        }
+
+        return Pair(bestNumerator, bestDenominator)
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -509,11 +577,52 @@ class CropImageView @JvmOverloads constructor(
     }
 
     fun setCropRatio(width: Float, height: Float) {
-        mCropRatioWidth = width
-        mCropRatioHeight = height
+        // Tính tỷ lệ mới dựa trên đầu vào (có thể là kết quả của floatToFraction)
+        val computedRatio = width / height  // ví dụ: nếu floatToFraction trả về (76, 71) thì computedRatio ~ 1.070
+        val targetRatio = 5f / 4f            // 5:4 ~ 1.25
+
+        // Nếu computedRatio gần với targetRatio (ví dụ sai lệch không quá 15%), snap về targetRatio.
+        val finalWidth: Float
+        val finalHeight: Float
+        if (abs(computedRatio - targetRatio) < 0.15f) {
+            finalWidth = 5f
+            finalHeight = 4f
+        } else {
+            finalWidth = width
+            finalHeight = height
+        }
+
+        // Lưu lại tỷ lệ crop mới
+        mCropRatioWidth = finalWidth
+        mCropRatioHeight = finalHeight
+
+        // Giữ nguyên trung điểm của vùng crop hiện tại
+        val centerX = mCropRectBorderRectF.centerX()
+        val centerY = mCropRectBorderRectF.centerY()
+
+        // Giữ lại kích thước hiện tại của vùng crop (nếu có) hoặc tính dựa trên mCropOutRectF
+        var newWidth = mCropRectBorderRectF.width()
+        var newHeight = newWidth * (finalHeight / finalWidth)
+
+        // Nếu chiều cao tính được vượt quá giới hạn vùng crop tối đa thì điều chỉnh theo chiều cao
+        if (newHeight > mCropOutRectF.height()) {
+            newHeight = mCropOutRectF.height()
+            newWidth = newHeight * (finalWidth / finalHeight)
+        }
+
+        // Tính biên mới dựa trên trung điểm, đảm bảo không vượt ra ngoài mCropOutRectF
+        val newLeft = max(mCropOutRectF.left, centerX - newWidth / 2f)
+        val newTop = max(mCropOutRectF.top, centerY - newHeight / 2f)
+        val newRight = min(mCropOutRectF.right, centerX + newWidth / 2f)
+        val newBottom = min(mCropOutRectF.bottom, centerY + newHeight / 2f)
+
+        mCropRectBorderRectF.set(newLeft, newTop, newRight, newBottom)
+        mCropRectF.set(mCropRectBorderRectF)
+
         updateBaseMatrix()
         invalidate()
     }
+
 
     fun setShowCropLine(show: Boolean) {
         mShowCropLine = show
@@ -595,6 +704,74 @@ class CropImageView @JvmOverloads constructor(
         }
         if (!haveBorder) setCornerRadius(currentBorder)
         return Bitmap.createBitmap(fullBitmap, left, top, width, height)
+    }
+
+    private fun detectTouchCorner(x: Float, y: Float): DragCorner {
+        val rect = mCropRectF
+        val s = touchAreaSize
+
+        return when {
+            RectF(rect.left - s, rect.top - s, rect.left + s, rect.top + s).contains(x, y) -> DragCorner.TOP_LEFT
+            RectF(rect.right - s, rect.top - s, rect.right + s, rect.top + s).contains(x, y) -> DragCorner.TOP_RIGHT
+            RectF(rect.left - s, rect.bottom - s, rect.left + s, rect.bottom + s).contains(x, y) -> DragCorner.BOTTOM_LEFT
+            RectF(rect.right - s, rect.bottom - s, rect.right + s, rect.bottom + s).contains(x, y) -> DragCorner.BOTTOM_RIGHT
+            else -> DragCorner.NONE
+        }
+    }
+
+
+    private fun resizeCropRect(dx: Float, dy: Float, corner: DragCorner) {
+        val newRect = RectF(mCropRectF)
+
+        when (corner) {
+            DragCorner.TOP_LEFT -> {
+                newRect.left += dx
+                newRect.top += dy
+            }
+            DragCorner.TOP_RIGHT -> {
+                newRect.right += dx
+                newRect.top += dy
+            }
+            DragCorner.BOTTOM_LEFT -> {
+                newRect.left += dx
+                newRect.bottom += dy
+            }
+            DragCorner.BOTTOM_RIGHT -> {
+                newRect.right += dx
+                newRect.bottom += dy
+            }
+            else -> return
+        }
+
+        // Giới hạn cropRect không vượt ra ngoài view
+        val viewBounds = RectF(paddingLeft.toFloat(), paddingTop.toFloat(), width - paddingRight.toFloat(), height - paddingBottom.toFloat())
+        newRect.intersect(viewBounds)
+
+        // Nếu width/height quá nhỏ thì bỏ
+        if (newRect.width() < 100f || newRect.height() < 100f) return
+
+        // Gán lại
+        mCropRectF.set(newRect)
+        mCropRectBorderRectF.set(newRect)
+        mCropRectBorderRectF.inset(mCropRectBorderWidth / 2f, mCropRectBorderWidth / 2f)
+        updateCropSubLines()
+    }
+
+
+    private fun updateCropSubLines() {
+        mCropSubLinesPath.reset()
+        val widthLineLength = mCropRectF.width() / 3f
+        val heightLineLength = mCropRectF.height() / 3f
+
+        mCropSubLinesPath.moveTo(mCropRectF.left + widthLineLength, mCropRectF.top)
+        mCropSubLinesPath.lineTo(mCropRectF.left + widthLineLength, mCropRectF.bottom)
+        mCropSubLinesPath.moveTo(mCropRectF.left + widthLineLength * 2, mCropRectF.top)
+        mCropSubLinesPath.lineTo(mCropRectF.left + widthLineLength * 2, mCropRectF.bottom)
+
+        mCropSubLinesPath.moveTo(mCropRectF.left, mCropRectF.top + heightLineLength)
+        mCropSubLinesPath.lineTo(mCropRectF.right, mCropRectF.top + heightLineLength)
+        mCropSubLinesPath.moveTo(mCropRectF.left, mCropRectF.top + heightLineLength * 2)
+        mCropSubLinesPath.lineTo(mCropRectF.right, mCropRectF.top + heightLineLength * 2)
     }
 
 }
