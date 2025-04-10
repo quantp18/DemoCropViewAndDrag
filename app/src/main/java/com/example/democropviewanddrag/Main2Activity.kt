@@ -30,6 +30,7 @@ class Main2Activity : AppCompatActivity() {
         binding = ActivityMainNewBinding.inflate(layoutInflater)
 
         setContentView(binding.root)
+        binding.ivRotate.setImageFromResource(R.drawable.content2)
 
         binding.btnCrop.setOnClickListener {
             binding.ivRotate.setImageFromResource(R.drawable.content2)
@@ -43,6 +44,10 @@ class Main2Activity : AppCompatActivity() {
 
         binding.btn3.setOnClickListener {
             binding.cropView.setCropRatio(3f, 2f)
+        }
+
+        binding.btn26.setOnClickListener {
+            binding.cropView.setCropRatio(6f, 2f)
         }
 
         binding.btnShow.setOnClickListener {
@@ -79,11 +84,7 @@ class Main2Activity : AppCompatActivity() {
         val backgroundBitmap = binding.cropView.getAccurateCropBitmap() ?: return null
         val foregroundBitmap = binding.ivRotate.getBitmap() ?: return null
 
-        val resultBitmap = Bitmap.createBitmap(
-            backgroundBitmap.width,
-            backgroundBitmap.height,
-            Bitmap.Config.ARGB_8888
-        )
+        val resultBitmap = createBitmap(backgroundBitmap.width, backgroundBitmap.height)
         val canvas = Canvas(resultBitmap)
 
         // Vẽ ảnh nền

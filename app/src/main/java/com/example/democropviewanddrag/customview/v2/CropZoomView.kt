@@ -151,6 +151,7 @@ class CropZoomView @JvmOverloads constructor(
                     val deltaRotation = newRotation - initialRotation
                     imageMatrix.postRotate(deltaRotation, backgroundRect.centerX(), backgroundRect.centerY())
                     initialRotation = newRotation
+                    updateBackgroundRect()
                     invalidate()
                 } else if (isZooming) {
                     // Phóng to/thu nhỏ ảnh
@@ -234,12 +235,8 @@ class CropZoomView @JvmOverloads constructor(
 
             return resultBitmap
         }
-        //todo check lại size ảnh bitmap foreground với background
         return null
     }
-
-
-
 //    fun getBitmapPosition(): RectF {
 //        val rect = RectF(0f, 0f, imageBitmap?.width?.toFloat() ?: 0f, imageBitmap?.height?.toFloat() ?: 0f)
 //        imageMatrix.mapRect(rect)
@@ -247,7 +244,9 @@ class CropZoomView @JvmOverloads constructor(
 //    }
 
     fun getBitmapPosition(): RectF {
-        return RectF(backgroundRect)
+        val rect = RectF(backgroundRect)
+        imageMatrix.mapRect(rect)
+        return rect
     }
 
     fun adjustToRatio(ratio: Float) {
