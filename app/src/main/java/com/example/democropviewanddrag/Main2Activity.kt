@@ -82,47 +82,31 @@ class Main2Activity : AppCompatActivity() {
 
     private fun mergeBitmaps(): Bitmap? {
         val backgroundBitmap = binding.cropView.getAccurateCropBitmap() ?: return null
-        val foregroundBitmap = binding.ivRotate.getBitmap() ?: return null
+        val foregroundBitmap = binding.ivRotate.getBitmap(backgroundBitmap.width, backgroundBitmap.height) ?: return null
 
         val resultBitmap = createBitmap(backgroundBitmap.width, backgroundBitmap.height)
         val canvas = Canvas(resultBitmap)
 
-        // Vẽ ảnh nền
         canvas.drawBitmap(backgroundBitmap, 0f, 0f, null)
+        canvas.drawBitmap(foregroundBitmap, 0f, 0f, null)
 
-        // === Tính scale giữa cropView (view) và ảnh crop thật (bitmap) ===
-        val scaleX = backgroundBitmap.width.toFloat() / binding.cropView.width
-        val scaleY = backgroundBitmap.height.toFloat() / binding.cropView.height
-
-        // === Tính vị trí center của ivRotate (ảnh overlay) so với cropView ===
-        val cropViewLocation = IntArray(2)
-        val ivRotateLocation = IntArray(2)
-
-        binding.cropView.getLocationOnScreen(cropViewLocation)
-        binding.ivRotate.getLocationOnScreen(ivRotateLocation)
-
-        val relativeCenterX = (ivRotateLocation[0] - cropViewLocation[0]) + binding.ivRotate.width / 2f
-        val relativeCenterY = (ivRotateLocation[1] - cropViewLocation[1]) + binding.ivRotate.height / 2f
-
-        // Chuyển sang toạ độ bitmap thật
-        val drawX = relativeCenterX * scaleX - foregroundBitmap.width / 2f
-        val drawY = relativeCenterY * scaleY - foregroundBitmap.height / 2f
-
-        // Vẽ ảnh foreground
-        canvas.drawBitmap(foregroundBitmap, drawX, drawY, null)
+        Log.e("TAG", "mergeBitmaps: ", )
 
         return resultBitmap
     }
+
     fun Bitmap.trimTransparent(): Bitmap {
         val width = width
         val height = height
         var top = 0
         var bottom = height
+        var left = 0
+        var right = width
 
         val pixels = IntArray(width * height)
         getPixels(pixels, 0, width, 0, 0, width, height)
 
-        // Tìm phần trên
+        // Tìm top
         loop@ for (y in 0 until height) {
             for (x in 0 until width) {
                 if (pixels[y * width + x] != 0) {
@@ -132,18 +116,44 @@ class Main2Activity : AppCompatActivity() {
             }
         }
 
-        // Tìm phần dưới
+        // Tìm bottom
         loop@ for (y in height - 1 downTo 0) {
             for (x in 0 until width) {
                 if (pixels[y * width + x] != 0) {
-                    bottom = y
+                    bottom = y + 1
                     break@loop
                 }
             }
         }
 
-        return Bitmap.createBitmap(this, 0, top, width, bottom - top)
+        // Tìm left
+        loop@ for (x in 0 until width) {
+            for (y in top until bottom) {
+                if (pixels[y * width + x] != 0) {
+                    left = x
+                    break@loop
+                }
+            }
+        }
+
+        // Tìm right
+        loop@ for (x in width - 1 downTo 0) {
+            for (y in top until bottom) {
+                if (pixels[y * width + x] != 0) {
+                    right = x + 1
+                    break@loop
+                }
+            }
+        }
+
+        val newWidth = right - left
+        val newHeight = bottom - top
+
+        if (newWidth <= 0 || newHeight <= 0) return this // Tránh lỗi
+
+        return Bitmap.createBitmap(this, left, top, newWidth, newHeight)
     }
+
 
 
 
