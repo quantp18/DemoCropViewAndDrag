@@ -21,6 +21,8 @@ import androidx.core.view.GestureDetectorCompat
 import androidx.core.view.drawToBitmap
 import com.example.democropviewanddrag.R
 import kotlin.math.roundToInt
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withMatrix
 
 class CropImageView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
@@ -61,6 +63,7 @@ class CropImageView @JvmOverloads constructor(
     private val mCropRectBorderPaint = Paint(Paint.DITHER_FLAG or Paint.ANTI_ALIAS_FLAG)
     private var mCropRectBorderWidth: Float = 0f
     private var mCropRectBorderColor: Int = Color.WHITE
+    private var mCornerRadius = 20f  // Giá trị bán kính bo góc, có thể thay đổi
     private var mCropRectBorderRectF = RectF()
 
     private var mShowCropLine = true
@@ -180,12 +183,18 @@ class CropImageView @JvmOverloads constructor(
         super.onDraw(canvas)
         val layer = canvas.saveLayer(0f, 0f, width.toFloat(), height.toFloat(), null)
         canvas.drawColor(mCropBackground)
-        canvas.drawRect(mCropRectF, mCropRectPaint)
+        canvas.drawRoundRect(mCropRectF, mCornerRadius, mCornerRadius, mCropRectPaint)
         canvas.restoreToCount(layer)
         if (mShowCropLine) {
             canvas.drawPath(mCropSubLinesPath, mCropLinesPathPaint)
         }
-        canvas.drawRect(mCropRectBorderRectF, mCropRectBorderPaint)
+        // Vẽ border với các góc bo tròn thay vì vẽ hình chữ nhật thường
+        canvas.drawRoundRect(mCropRectBorderRectF, mCornerRadius, mCornerRadius, mCropRectBorderPaint)
+    }
+
+    fun setCornerRadius(radius : Float) {
+        mCornerRadius = radius
+        invalidate()
     }
 
     override fun setImageResource(resId: Int) {
@@ -546,14 +555,13 @@ class CropImageView @JvmOverloads constructor(
                 bitmapHeight = baseWidth
             }
         }
-        val bitmap = Bitmap.createBitmap(bitmapWidth, bitmapHeight, config)
+        val bitmap = createBitmap(bitmapWidth, bitmapHeight, config)
         val canvas = Canvas(bitmap)
         canvas.scale(canvasScale, canvasScale)
         canvas.translate(-mCropRectF.left, -mCropRectF.top)
-        canvas.save()
-        canvas.concat(getDrawMatrix())
-        drawable.draw(canvas)
-        canvas.restore()
+        canvas.withMatrix(getDrawMatrix()) {
+            drawable.draw(this)
+        }
         return bitmap
     }
 
