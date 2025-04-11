@@ -4,7 +4,16 @@ import android.animation.ValueAnimator
 import android.animation.ValueAnimator.AnimatorUpdateListener
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.*
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Matrix
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
+import android.graphics.RectF
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.util.AttributeSet
@@ -17,17 +26,17 @@ import android.view.View
 import android.view.View.OnLayoutChangeListener
 import android.view.animation.LinearInterpolator
 import androidx.appcompat.widget.AppCompatImageView
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.scale
+import androidx.core.graphics.withMatrix
+import androidx.core.graphics.withTranslation
 import androidx.core.view.GestureDetectorCompat
 import androidx.core.view.drawToBitmap
 import com.example.democropviewanddrag.R
-import kotlin.math.roundToInt
-import androidx.core.graphics.createBitmap
-import androidx.core.graphics.withMatrix
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
-import androidx.core.graphics.scale
-import androidx.core.graphics.withTranslation
+import kotlin.math.roundToInt
 
 class CropImageView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
@@ -64,6 +73,7 @@ class CropImageView @JvmOverloads constructor(
     private var mCropRectPaint = Paint(Paint.DITHER_FLAG or Paint.ANTI_ALIAS_FLAG)
     private val mXfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
     private var mCropRectF = RectF()
+    private var mBackgroundPaint = Paint(Paint.DITHER_FLAG or Paint.ANTI_ALIAS_FLAG)
 
     private val mCropRectBorderPaint = Paint(Paint.DITHER_FLAG or Paint.ANTI_ALIAS_FLAG)
     private var mCropRectBorderWidth: Float = 0f
@@ -155,7 +165,7 @@ class CropImageView @JvmOverloads constructor(
         mCropLinesWidth = ta.getDimension(R.styleable.CropImageView_civ_crop_line_width, 4f)
         mCropBackground =
             ta.getColor(R.styleable.CropImageView_civ_crop_mask_color, DEFAULT_CROP_MASK_COLOR)
-        mCropRectBorderWidth = ta.getDimension(R.styleable.CropImageView_civ_crop_border_width, 2f)
+        mCropRectBorderWidth = ta.getDimension(R.styleable.CropImageView_civ_crop_border_width, 4f)
         mCropRectBorderColor =
             ta.getColor(R.styleable.CropImageView_civ_crop_border_color, Color.WHITE)
         ta.recycle()
@@ -180,6 +190,11 @@ class CropImageView @JvmOverloads constructor(
             strokeWidth = mCropPointBorderWidth
             color = mCropPointBorderColor
             alpha = 0
+        }
+
+        mBackgroundPaint.apply {
+            style = Paint.Style.FILL
+            color = mCropBackground
         }
 
         mFourCornerPaint.alpha = 0
@@ -256,14 +271,14 @@ class CropImageView @JvmOverloads constructor(
         return true
     }
 
-    fun floatToFraction(value: Float, maxDenominator: Int = 100): Pair<Int, Int> {
+    private fun floatToFraction(value: Float, maxDenominator: Int = 100): Pair<Int, Int> {
         var bestNumerator = 1
         var bestDenominator = 1
-        var bestError = Math.abs(value - bestNumerator.toFloat() / bestDenominator)
+        var bestError = abs(value - bestNumerator.toFloat() / bestDenominator)
 
         for (denominator in 1..maxDenominator) {
             val numerator = Math.round(value * denominator)
-            val error = Math.abs(value - numerator.toFloat() / denominator)
+            val error = abs(value - numerator.toFloat() / denominator)
             if (error < bestError) {
                 bestNumerator = numerator
                 bestDenominator = denominator
@@ -274,10 +289,12 @@ class CropImageView @JvmOverloads constructor(
         return Pair(bestNumerator, bestDenominator)
     }
 
+    @SuppressLint("DrawAllocation")
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val layer = canvas.saveLayer(0f, 0f, width.toFloat(), height.toFloat(), null)
-        canvas.drawColor(mCropBackground)
+        val backgroundRect = RectF(0f, 0f, width.toFloat(), height.toFloat())
+        canvas.drawRoundRect(backgroundRect, mCornerRadius, mCornerRadius, mBackgroundPaint)
         canvas.drawRoundRect(mCropRectF, mCornerRadius, mCornerRadius, mCropRectPaint)
         canvas.restoreToCount(layer)
         if (mShowCropLine) {
@@ -874,49 +891,29 @@ class CropImageView @JvmOverloads constructor(
         val s = touchAreaSize
 
         return when {
-            RectF(rect.left - s, rect.top - s, rect.left + s, rect.top + s).contains(
-                x,
-                y
-            ) -> DragCorner.TOP_LEFT
+            RectF(rect.left - s, rect.top - s, rect.left + s, rect.top + s)
+                .contains(x, y) -> DragCorner.TOP_LEFT
 
-            RectF(rect.right - s, rect.top - s, rect.right + s, rect.top + s).contains(
-                x,
-                y
-            ) -> DragCorner.TOP_RIGHT
+            RectF(rect.right - s, rect.top - s, rect.right + s, rect.top + s)
+                .contains(x, y) -> DragCorner.TOP_RIGHT
 
-            RectF(rect.left - s, rect.bottom - s, rect.left + s, rect.bottom + s).contains(
-                x,
-                y
-            ) -> DragCorner.BOTTOM_LEFT
+            RectF(rect.left - s, rect.bottom - s, rect.left + s, rect.bottom + s)
+                .contains(x, y) -> DragCorner.BOTTOM_LEFT
 
-            RectF(rect.right - s, rect.bottom - s, rect.right + s, rect.bottom + s).contains(
-                x,
-                y
-            ) -> DragCorner.BOTTOM_RIGHT
+            RectF(rect.right - s, rect.bottom - s, rect.right + s, rect.bottom + s)
+                .contains(x, y) -> DragCorner.BOTTOM_RIGHT
 
-            RectF(rect.centerX() - s, rect.top - s, rect.centerX() + s, rect.top + s).contains(
-                x,
-                y
-            ) -> DragCorner.CENTER_TOP
+            RectF(rect.centerX() - s, rect.top - s, rect.centerX() + s, rect.top + s)
+                .contains(x, y) -> DragCorner.CENTER_TOP
 
-            RectF(rect.left - s, rect.centerY() - s, rect.left + s, rect.centerY() + s).contains(
-                x,
-                y
-            ) -> DragCorner.CENTER_LEFT
+            RectF(rect.left - s, rect.centerY() - s, rect.left + s, rect.centerY() + s)
+                .contains(x, y) -> DragCorner.CENTER_LEFT
 
-            RectF(
-                rect.right - s,
-                rect.centerY() - s,
-                rect.right + s,
-                rect.centerY() + s
-            ).contains(x, y) -> DragCorner.CENTER_RIGHT
+            RectF(rect.right - s, rect.centerY() - s, rect.right + s, rect.centerY() + s)
+                .contains(x, y) -> DragCorner.CENTER_RIGHT
 
-            RectF(
-                rect.centerX() - s,
-                rect.bottom - s,
-                rect.centerX() + s,
-                rect.bottom + s
-            ).contains(x, y) -> DragCorner.CENTER_BOTTOM
+            RectF(rect.centerX() - s, rect.bottom - s, rect.centerX() + s, rect.bottom + s)
+                .contains(x, y) -> DragCorner.CENTER_BOTTOM
 
             else -> DragCorner.NONE
         }
