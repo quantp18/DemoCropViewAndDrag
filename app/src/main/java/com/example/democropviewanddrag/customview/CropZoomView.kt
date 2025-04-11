@@ -12,6 +12,7 @@ import androidx.core.graphics.createBitmap
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.sqrt
+import androidx.core.graphics.toColorInt
 
 class CropZoomView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
@@ -25,7 +26,7 @@ class CropZoomView @JvmOverloads constructor(
     // Border và icon
     private var isSelected = false // Trạng thái được chọn
     private val borderPaint = Paint().apply {
-        color = Color.parseColor("#12C138")
+        color = "#12C138".toColorInt()
         style = Paint.Style.STROKE
         strokeWidth = 2f
     }
@@ -229,7 +230,7 @@ class CropZoomView @JvmOverloads constructor(
         return backgroundRect.contains(x, y) || isInRotateIcon(x, y) || isInZoomIcon(x, y)
     }
 
-    fun getCurrentScaleFromMatrix(matrix: Matrix): Float {
+    private fun getCurrentScaleFromMatrix(matrix: Matrix): Float {
         val values = FloatArray(9)
         matrix.getValues(values)
         // MSCALE_X = values[0], MSKEW_Y = values[3]
