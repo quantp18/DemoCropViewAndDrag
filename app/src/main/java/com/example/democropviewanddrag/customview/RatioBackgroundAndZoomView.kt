@@ -8,6 +8,7 @@ import android.net.Uri
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.widget.FrameLayout
+import androidx.annotation.Keep
 import androidx.core.graphics.createBitmap
 import com.example.democropviewanddrag.databinding.LayoutRatioBackgroundWithZoomviewBinding
 import com.example.democropviewanddrag.extension.trimTransparent
@@ -180,4 +181,9 @@ class RatioBackgroundAndZoomView @JvmOverloads constructor(
             null
         }
     }
+}
+
+@Keep
+enum class PositionWatermark{
+    TOP_START, TOP_END, BOTTOM_START, BOTTOM_END
 }

@@ -3,6 +3,7 @@ package com.example.democropviewanddrag
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import com.example.democropviewanddrag.customview.PositionWatermark
 import com.example.democropviewanddrag.databinding.ActivityTestGroupCustomViewBinding
 import com.example.democropviewanddrag.extension.addWatermark
 import com.example.democropviewanddrag.model.PaddingWatermark
@@ -51,7 +52,8 @@ class TestGroupCustomViewActivity : AppCompatActivity() {
                 ivPreview.setImageBitmap(
                     viewEditor.getResultBitmap().addWatermark(
                         resources = resources,
-                        paddingValue = PaddingWatermark(bottom = 16, right = 16)
+                        padding = PaddingWatermark(top = 16, right = 16),
+                        position = PositionWatermark.TOP_END
                     )
                 )
             }

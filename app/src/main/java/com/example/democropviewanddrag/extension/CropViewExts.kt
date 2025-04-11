@@ -8,48 +8,51 @@ import android.graphics.drawable.Drawable
 import android.util.Log
 import android.view.View
 import android.widget.ImageView
+import androidx.annotation.DrawableRes
 import androidx.core.graphics.createBitmap
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import com.example.democropviewanddrag.R
 import com.example.democropviewanddrag.customview.CropImageView
+import com.example.democropviewanddrag.customview.PositionWatermark
 import com.example.democropviewanddrag.model.PaddingWatermark
 
 /** Add watermark for result bitmap*/
 fun Bitmap?.addWatermark(
     resources: Resources,
-    paddingValue : PaddingWatermark? = null,
-    resId: Int = R.drawable.bg_watermark
+    padding: PaddingWatermark = PaddingWatermark(),
+    position: PositionWatermark = PositionWatermark.BOTTOM_END,
+    @DrawableRes resId: Int = R.drawable.bg_watermark
 ): Bitmap? {
     val originalBitmap = this ?: return null
 
     return try {
-        val resultBitmap = createBitmap(originalBitmap.width, originalBitmap.height)
+        val result = createBitmap(originalBitmap.width, originalBitmap.height)
+        val watermark = BitmapFactory.decodeResource(resources, resId) ?: return null
 
-        val watermark = BitmapFactory.decodeResource(resources, resId)
-        if (watermark == null) {
-            Log.e("Watermark", "Invalid watermark resource")
-            return null
+        val left = when (position) {
+            PositionWatermark.TOP_START, PositionWatermark.BOTTOM_START -> padding.left
+            PositionWatermark.TOP_END, PositionWatermark.BOTTOM_END -> originalBitmap.width - watermark.width - padding.right
+        }.coerceAtLeast(0)
+
+        val top = when (position) {
+            PositionWatermark.TOP_START, PositionWatermark.TOP_END -> padding.top
+            PositionWatermark.BOTTOM_START, PositionWatermark.BOTTOM_END -> originalBitmap.height - watermark.height - padding.bottom
+        }.coerceAtLeast(0)
+
+        Canvas(result).apply {
+            drawBitmap(originalBitmap, 0f, 0f, null)
+            drawBitmap(watermark, left.toFloat(), top.toFloat(), null)
         }
 
-        // Lấy padding nếu có, mặc định = 0
-        val padding = paddingValue ?: PaddingWatermark()
-
-        // Tính toán vị trí vẽ watermark
-        val left = (originalBitmap.width - watermark.width - padding.right).coerceAtLeast(padding.left)
-        val top = (originalBitmap.height - watermark.height - padding.bottom).coerceAtLeast(padding.top)
-
-        val canvas = Canvas(resultBitmap)
-        canvas.drawBitmap(originalBitmap, 0f, 0f, null)
-        canvas.drawBitmap(watermark, left.toFloat(), top.toFloat(), null)
-
-        resultBitmap
+        result
     } catch (e: Throwable) {
         e.printStackTrace()
         null
     }
 }
+
 
 fun CropImageView.setForegroundImageUrl(
     url: String,

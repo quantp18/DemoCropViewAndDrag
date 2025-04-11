@@ -13,13 +13,13 @@
         android:theme="@style/Theme.DemoCropViewAndDrag"
         tools:targetApi="31">
         <activity
-            android:name=".TestGroupCustomViewActivity"
+            android:name=".DemoRemovePixelActivity"
             android:exported="false" />
         <activity
             android:name=".Main2Activity"
             android:exported="false" />
         <activity
-            android:name=".DemoRemovePixelActivity"
+            android:name=".TestGroupCustomViewActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

@@ -37,6 +37,7 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import androidx.core.content.withStyledAttributes
 
 class CropImageView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
@@ -155,17 +156,17 @@ class CropImageView @JvmOverloads constructor(
 
 
     init {
-        val ta = context.obtainStyledAttributes(attrs, R.styleable.CropImageView)
-        mShowCropLine = ta.getBoolean(R.styleable.CropImageView_civ_show_crop_line, true)
-        mCropRatioWidth = ta.getFloat(R.styleable.CropImageView_civ_crop_ratio_width, 1f)
-        mCropRatioHeight = ta.getFloat(R.styleable.CropImageView_civ_crop_ratio_height, 1f)
-        mCropLinesWidth = ta.getDimension(R.styleable.CropImageView_civ_crop_line_width, 4f)
-        mCropBackground =
-            ta.getColor(R.styleable.CropImageView_civ_crop_mask_color, DEFAULT_CROP_MASK_COLOR)
-        mCropRectBorderWidth = ta.getDimension(R.styleable.CropImageView_civ_crop_border_width, 4f)
-        mCropRectBorderColor =
-            ta.getColor(R.styleable.CropImageView_civ_crop_border_color, Color.WHITE)
-        ta.recycle()
+        context.withStyledAttributes(attrs, R.styleable.CropImageView) {
+            mShowCropLine = getBoolean(R.styleable.CropImageView_civ_show_crop_line, true)
+            mCropRatioWidth = getFloat(R.styleable.CropImageView_civ_crop_ratio_width, 1f)
+            mCropRatioHeight = getFloat(R.styleable.CropImageView_civ_crop_ratio_height, 1f)
+            mCropLinesWidth = getDimension(R.styleable.CropImageView_civ_crop_line_width, 4f)
+            mCropBackground =
+                getColor(R.styleable.CropImageView_civ_crop_mask_color, DEFAULT_CROP_MASK_COLOR)
+            mCropRectBorderWidth = getDimension(R.styleable.CropImageView_civ_crop_border_width, 4f)
+            mCropRectBorderColor =
+                getColor(R.styleable.CropImageView_civ_crop_border_color, Color.WHITE)
+        }
 
         scaleType = ScaleType.MATRIX
         mCropRectPaint.xfermode = mXfermode
