@@ -10,7 +10,7 @@
     <com.example.democropviewanddrag.customview.RatioBackgroundAndZoomView
         android:id="@+id/viewEditor"
         android:layout_width="match_parent"
-        android:layout_height="300dp"
+        android:layout_height="400dp"
         android:layout_marginStart="32dp"
         android:layout_marginTop="32dp"
         android:layout_marginEnd="32dp"
