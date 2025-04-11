@@ -10,6 +10,7 @@ import android.view.LayoutInflater
 import android.widget.FrameLayout
 import androidx.core.graphics.createBitmap
 import com.example.democropviewanddrag.databinding.LayoutRatioBackgroundWithZoomviewBinding
+import com.example.democropviewanddrag.extension.trimTransparent
 
 class RatioBackgroundAndZoomView @JvmOverloads constructor(
     context: Context,
@@ -85,6 +86,10 @@ class RatioBackgroundAndZoomView @JvmOverloads constructor(
         safeRun({ backgroundImageView!!.setCornerRadius(radius) }, onError)
     }
 
+    fun showGridClipPath(onError: (Exception) -> Unit = {}) {
+        safeRun({ backgroundImageView!!.toggleClipPath() }, onError)
+    }
+
     /**
      * Set image for foreground/content
      * */
@@ -135,7 +140,13 @@ class RatioBackgroundAndZoomView @JvmOverloads constructor(
     /**Merge background image with foreground image*/
     fun getResultBitmap(haveBorder: Boolean = false): Bitmap? {
         return try {
-            val backgroundBitmap = getBackgroundBitmap(haveBorder) ?: return null
+            val backgroundBitmap = try {
+                getBackgroundBitmap(haveBorder)?.trimTransparent()
+            } catch (e: OutOfMemoryError) {
+                e.printStackTrace()
+                getBackgroundBitmap(haveBorder)
+            } ?: return null
+
             val foregroundBitmap =
                 getForegroundBitmap(backgroundBitmap.width, backgroundBitmap.height) ?: return null
             val resultBitmap = createBitmap(backgroundBitmap.width, backgroundBitmap.height)

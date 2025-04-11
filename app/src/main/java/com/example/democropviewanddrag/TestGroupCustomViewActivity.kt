@@ -25,8 +25,9 @@ class TestGroupCustomViewActivity : AppCompatActivity() {
                 viewEditor.setCropRatioForBackground(1f, 1f)
             }
 
+            btnCrop.setText("showGrid")
             btnCrop.setOnClickListener {
-                viewEditor.setCropRatioForBackground(5f, 4f)
+                viewEditor.showGridClipPath()
             }
 
             btn2.setOnClickListener {

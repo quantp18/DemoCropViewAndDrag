@@ -79,9 +79,11 @@ class CropImageView @JvmOverloads constructor(
     private var mCropLinesAnimDuration = DEFAULT_LINE_ANIM_DURATION
 
     private val touchAreaSize = 40f  // vùng nhạy để bắt drag (có thể tùy chỉnh)
+    
+    private var showClipPath : Boolean = false
 
     private enum class DragCorner {
-        NONE, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT
+        NONE, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT, CENTER_TOP, CENTER_LEFT, CENTER_RIGHT, CENTER_BOTTOM
     }
 
     private var activeDragCorner = DragCorner.NONE
@@ -537,6 +539,7 @@ class CropImageView @JvmOverloads constructor(
 
 
     private fun showCliPath() {
+        showClipPath = true
         mShowCropLinesPathAnim?.cancel()
         mHideCropLinesPathAnim?.cancel()
         val alpha = mCropLinesPathPaint.alpha
@@ -557,6 +560,7 @@ class CropImageView @JvmOverloads constructor(
     }
 
     private fun hideClipPath() {
+        showClipPath = false
         mShowCropLinesPathAnim?.cancel()
         mHideCropLinesPathAnim?.cancel()
         val alpha = mCropLinesPathPaint.alpha
@@ -576,6 +580,15 @@ class CropImageView @JvmOverloads constructor(
         }.start()
     }
 
+    fun toggleClipPath() {
+        showClipPath = !showClipPath
+        if (showClipPath){
+            showCliPath()
+        }else{
+            hideClipPath()
+        }
+    }
+
     fun setCropRatio(width: Float, height: Float) {
         // Tính tỷ lệ mới dựa trên đầu vào (có thể là kết quả của floatToFraction)
         val computedRatio = width / height  // ví dụ: nếu floatToFraction trả về (76, 71) thì computedRatio ~ 1.070
@@ -587,7 +600,10 @@ class CropImageView @JvmOverloads constructor(
         if (abs(computedRatio - targetRatio) < 0.15f) {
             finalWidth = 5f
             finalHeight = 4f
-        } else {
+        } else if (abs(computedRatio - 1) < 0.15f) {
+            finalWidth = 1f
+            finalHeight = 1f
+        }else{
             finalWidth = width
             finalHeight = height
         }
@@ -677,6 +693,10 @@ class CropImageView @JvmOverloads constructor(
     fun getAccurateCropBitmap(haveBorder : Boolean = false, config: Bitmap.Config = Bitmap.Config.ARGB_8888): Bitmap? {
         if (drawable == null) return null
         val currentBorder = mCornerRadius
+        if (showClipPath) {
+            mCropLinesPathPaint.alpha = 0
+            hideClipPath()
+        }
         if (!haveBorder) setCornerRadius(0f)
         // Bước 1: Vẽ toàn bộ view thành bitmap
         val fullBitmap = try {
@@ -715,6 +735,11 @@ class CropImageView @JvmOverloads constructor(
             RectF(rect.right - s, rect.top - s, rect.right + s, rect.top + s).contains(x, y) -> DragCorner.TOP_RIGHT
             RectF(rect.left - s, rect.bottom - s, rect.left + s, rect.bottom + s).contains(x, y) -> DragCorner.BOTTOM_LEFT
             RectF(rect.right - s, rect.bottom - s, rect.right + s, rect.bottom + s).contains(x, y) -> DragCorner.BOTTOM_RIGHT
+            RectF(rect.centerX() - s, rect.top - s, rect.centerX() + s, rect.top + s).contains(x, y) -> DragCorner.CENTER_TOP
+            RectF(rect.left - s, rect.centerY() - s, rect.left + s, rect.centerY() + s).contains(x, y) -> DragCorner.CENTER_LEFT
+            RectF(rect.right - s, rect.centerY() - s, rect.right + s, rect.centerY() + s).contains(x, y) -> DragCorner.CENTER_RIGHT
+            RectF(rect.centerX() - s, rect.bottom - s, rect.centerX() + s, rect.bottom + s).contains(x, y) -> DragCorner.CENTER_BOTTOM
+
             else -> DragCorner.NONE
         }
     }
@@ -738,6 +763,18 @@ class CropImageView @JvmOverloads constructor(
             }
             DragCorner.BOTTOM_RIGHT -> {
                 newRect.right += dx
+                newRect.bottom += dy
+            }
+            DragCorner.CENTER_TOP -> {
+                newRect.top += dy
+            }
+            DragCorner.CENTER_LEFT -> {
+                newRect.left += dx
+            }
+            DragCorner.CENTER_RIGHT -> {
+                newRect.right += dx
+            }
+            DragCorner.CENTER_BOTTOM -> {
                 newRect.bottom += dy
             }
             else -> return
