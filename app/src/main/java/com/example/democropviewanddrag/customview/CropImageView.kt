@@ -84,14 +84,11 @@ class CropImageView @JvmOverloads constructor(
     private val mCropPointBorderPaint = Paint(Paint.DITHER_FLAG or Paint.ANTI_ALIAS_FLAG)
     private var mCropPointBorderWidth = 5f
     private var mCropPointBorderColor: Int = Color.WHITE
-    private var mCropPointBorderRectF = RectF()
-    private var mCornerPointLength = 50f
     private val mFourCornerPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     private val cornerBitmap: Bitmap by lazy {
         BitmapFactory.decodeResource(resources, R.drawable.border_item)
     }
-
 
     private var mShowCropLine = true
     private var mCropLinesWidth = 4f
@@ -293,7 +290,7 @@ class CropImageView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val layer = canvas.saveLayer(0f, 0f, width.toFloat(), height.toFloat(), null)
-        val backgroundRect = RectF(0f, 0f, width.toFloat(), height.toFloat())
+        val backgroundRect = RectF(0f, 0f, width.toFloat() - 10, height.toFloat())
         canvas.drawRoundRect(backgroundRect, mCornerRadius, mCornerRadius, mBackgroundPaint)
         canvas.drawRoundRect(mCropRectF, mCornerRadius, mCornerRadius, mCropRectPaint)
         canvas.restoreToCount(layer)
