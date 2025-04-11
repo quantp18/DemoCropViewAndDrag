@@ -82,6 +82,20 @@ class RatioBackgroundAndZoomView @JvmOverloads constructor(
         safeRun({ backgroundImageView!!.setCropRatio(width, height) }, onError)
     }
 
+    fun setCropRatioOriginal(onError: (Exception) -> Unit = {}) : Pair<Int, Int>? {
+        return try {
+            backgroundImageView!!.setCropRatioOriginal()
+        }catch (e: OutOfMemoryError){
+            e.printStackTrace()
+            onError(Exception("Out of memory"))
+            null
+        }catch (e: Exception){
+            e.printStackTrace()
+            onError(e)
+            null
+        }
+    }
+
     fun setBackgroundRadius(radius: Float, onError: (Exception) -> Unit = {}) {
         safeRun({ backgroundImageView!!.setCornerRadius(radius) }, onError)
     }

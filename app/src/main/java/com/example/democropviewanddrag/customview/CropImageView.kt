@@ -26,6 +26,8 @@ import androidx.core.graphics.withMatrix
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import androidx.core.graphics.scale
+import androidx.core.graphics.withTranslation
 
 class CropImageView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
@@ -69,6 +71,18 @@ class CropImageView @JvmOverloads constructor(
     private var mCornerRadius = 20f  // Giá trị bán kính bo góc, có thể thay đổi
     private var mCropRectBorderRectF = RectF()
 
+    private val mCropPointBorderPaint = Paint(Paint.DITHER_FLAG or Paint.ANTI_ALIAS_FLAG)
+    private var mCropPointBorderWidth = 5f
+    private var mCropPointBorderColor: Int = Color.WHITE
+    private var mCropPointBorderRectF = RectF()
+    private var mCornerPointLength = 50f
+    private val mFourCornerPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    private val cornerBitmap: Bitmap by lazy {
+        BitmapFactory.decodeResource(resources, R.drawable.border_item)
+    }
+
+
     private var mShowCropLine = true
     private var mCropLinesWidth = 4f
 
@@ -79,8 +93,8 @@ class CropImageView @JvmOverloads constructor(
     private var mCropLinesAnimDuration = DEFAULT_LINE_ANIM_DURATION
 
     private val touchAreaSize = 40f  // vùng nhạy để bắt drag (có thể tùy chỉnh)
-    
-    private var showClipPath : Boolean = false
+
+    private var showClipPath: Boolean = false
 
     private enum class DragCorner {
         NONE, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT, CENTER_TOP, CENTER_LEFT, CENTER_RIGHT, CENTER_BOTTOM
@@ -139,9 +153,11 @@ class CropImageView @JvmOverloads constructor(
         mCropRatioWidth = ta.getFloat(R.styleable.CropImageView_civ_crop_ratio_width, 1f)
         mCropRatioHeight = ta.getFloat(R.styleable.CropImageView_civ_crop_ratio_height, 1f)
         mCropLinesWidth = ta.getDimension(R.styleable.CropImageView_civ_crop_line_width, 4f)
-        mCropBackground = ta.getColor(R.styleable.CropImageView_civ_crop_mask_color, DEFAULT_CROP_MASK_COLOR)
+        mCropBackground =
+            ta.getColor(R.styleable.CropImageView_civ_crop_mask_color, DEFAULT_CROP_MASK_COLOR)
         mCropRectBorderWidth = ta.getDimension(R.styleable.CropImageView_civ_crop_border_width, 2f)
-        mCropRectBorderColor = ta.getColor(R.styleable.CropImageView_civ_crop_border_color, Color.WHITE)
+        mCropRectBorderColor =
+            ta.getColor(R.styleable.CropImageView_civ_crop_border_color, Color.WHITE)
         ta.recycle()
 
         scaleType = ScaleType.MATRIX
@@ -158,6 +174,15 @@ class CropImageView @JvmOverloads constructor(
             strokeWidth = mCropRectBorderWidth
             color = mCropRectBorderColor
         }
+
+        mCropPointBorderPaint.apply {
+            style = Paint.Style.FILL_AND_STROKE
+            strokeWidth = mCropPointBorderWidth
+            color = mCropPointBorderColor
+            alpha = 0
+        }
+
+        mFourCornerPaint.alpha = 0
     }
 
 
@@ -210,7 +235,7 @@ class CropImageView @JvmOverloads constructor(
                     val newRatio = mCropRectBorderRectF.width() / mCropRectBorderRectF.height()
                     val (w, h) = floatToFraction(newRatio)
 
-                    Log.e("TAG", "floatToFraction: w: $w - h : $h", )
+                    Log.e("TAG", "floatToFraction: w: $w - h : $h")
                     // Cập nhật tỷ lệ mới
                     setCropRatio(w.toFloat(), h.toFloat())
 
@@ -259,10 +284,106 @@ class CropImageView @JvmOverloads constructor(
             canvas.drawPath(mCropSubLinesPath, mCropLinesPathPaint)
         }
         // Vẽ border với các góc bo tròn thay vì vẽ hình chữ nhật thường
-        canvas.drawRoundRect(mCropRectBorderRectF, mCornerRadius, mCornerRadius, mCropRectBorderPaint)
+        canvas.drawRoundRect(
+            mCropRectBorderRectF,
+            mCornerRadius,
+            mCornerRadius,
+            mCropRectBorderPaint
+        )
+        drawEdgeLines(canvas)
     }
 
-    fun setCornerRadius(radius : Float) {
+    private fun drawEdgeLines(canvas: Canvas) {
+        val rect = mCropRectF
+        val lineThickness = mCropPointBorderWidth
+
+        // Vẽ 4 đường line ở giữa các cạnh
+        // CENTER_TOP
+        canvas.drawRoundRect(
+            RectF(
+                rect.centerX() - 30f, rect.top - lineThickness,
+                rect.centerX() + 30f, rect.top + lineThickness
+            ),
+            lineThickness,
+            lineThickness,
+            mCropPointBorderPaint
+        )
+        // CENTER_BOTTOM
+        canvas.drawRoundRect(
+            RectF(
+                rect.centerX() - 30f, rect.bottom - lineThickness,
+                rect.centerX() + 30f, rect.bottom + lineThickness
+            ),
+            lineThickness,
+            lineThickness,
+            mCropPointBorderPaint
+        )
+        // CENTER_LEFT
+        canvas.drawRoundRect(
+            RectF(
+                rect.left - lineThickness, rect.centerY() - 30f,
+                rect.left + lineThickness, rect.centerY() + 30f
+            ),
+            lineThickness,
+            lineThickness,
+            mCropPointBorderPaint
+        )
+        // CENTER_RIGHT
+        canvas.drawRoundRect(
+            RectF(
+                rect.right - lineThickness, rect.centerY() - 30f,
+                rect.right + lineThickness, rect.centerY() + 30f
+            ),
+            lineThickness,
+            lineThickness,
+            mCropPointBorderPaint
+        )
+
+        drawCornerBitmaps(canvas, mCropRectBorderRectF)
+    }
+
+    private fun drawCornerBitmaps(canvas: Canvas, rect: RectF) {
+        val cornerSize = 60  // chiều rộng/chiều cao mong muốn của ảnh góc
+        val scaledBitmap = cornerBitmap.scale(cornerSize, cornerSize)
+
+        // =============== TOP LEFT ===============
+        canvas.drawBitmap(scaledBitmap, rect.left - 10f, rect.top - 10f, mFourCornerPaint)
+
+        // =============== TOP RIGHT ===============
+        canvas.withTranslation(rect.right - scaledBitmap.width + 10f, rect.top - 10f) {
+            rotate(90f)
+            drawBitmap(scaledBitmap, 0f, -scaledBitmap.height.toFloat(), mFourCornerPaint)
+        }
+
+        // =============== BOTTOM LEFT ===============
+        canvas.withTranslation(rect.left - 10f, rect.bottom - scaledBitmap.height + 10) {
+            rotate(-90f)
+            drawBitmap(scaledBitmap, -scaledBitmap.width.toFloat(), 0f, mFourCornerPaint)
+        }
+
+        // =============== BOTTOM RIGHT ===============
+        canvas.withTranslation(
+            rect.right - scaledBitmap.width + 10,
+            rect.bottom - scaledBitmap.height + 10
+        ) {
+            rotate(180f)
+            drawBitmap(
+                scaledBitmap,
+                -scaledBitmap.width.toFloat(),
+                -scaledBitmap.height.toFloat(),
+                mFourCornerPaint
+            )
+        }
+    }
+
+    private fun hideBorderImmediate() {
+        mCropLinesPathPaint.alpha = 0
+        mCropPointBorderPaint.alpha = 0
+        mFourCornerPaint.alpha = 0
+    }
+
+
+    fun setCornerRadius(radius: Float) {
         mCornerRadius = radius
         invalidate()
     }
@@ -383,7 +504,12 @@ class CropImageView @JvmOverloads constructor(
         }
         mUpAnim?.cancel()
         val displayRectF = RectF()
-        displayRectF.set(0f, 0f, drawable.intrinsicWidth.toFloat(), drawable.intrinsicHeight.toFloat())
+        displayRectF.set(
+            0f,
+            0f,
+            drawable.intrinsicWidth.toFloat(),
+            drawable.intrinsicHeight.toFloat()
+        )
         getDrawMatrix().mapRect(displayRectF)
 
         val baseRect = RectF()
@@ -552,6 +678,8 @@ class CropImageView @JvmOverloads constructor(
             addUpdateListener {
                 val value = it.animatedValue as Int
                 mCropLinesPathPaint.alpha = value
+                mFourCornerPaint.alpha = value
+                mCropPointBorderPaint.alpha = value
                 invalidate()
             }
         }.also {
@@ -573,6 +701,8 @@ class CropImageView @JvmOverloads constructor(
             addUpdateListener {
                 val value = it.animatedValue as Int
                 mCropLinesPathPaint.alpha = value
+                mFourCornerPaint.alpha = value
+                mCropPointBorderPaint.alpha = value
                 invalidate()
             }
         }.also {
@@ -582,16 +712,23 @@ class CropImageView @JvmOverloads constructor(
 
     fun toggleClipPath() {
         showClipPath = !showClipPath
-        if (showClipPath){
+        if (showClipPath) {
             showCliPath()
-        }else{
+        } else {
             hideClipPath()
         }
     }
 
+    fun setCropRatioOriginal(): Pair<Int, Int> {
+        val pair = Pair(drawable.intrinsicWidth, drawable.intrinsicHeight)
+        setCropRatio(pair.first.toFloat(), pair.second.toFloat())
+        return pair
+    }
+
     fun setCropRatio(width: Float, height: Float) {
         // Tính tỷ lệ mới dựa trên đầu vào (có thể là kết quả của floatToFraction)
-        val computedRatio = width / height  // ví dụ: nếu floatToFraction trả về (76, 71) thì computedRatio ~ 1.070
+        val computedRatio =
+            width / height  // ví dụ: nếu floatToFraction trả về (76, 71) thì computedRatio ~ 1.070
         val targetRatio = 5f / 4f            // 5:4 ~ 1.25
 
         // Nếu computedRatio gần với targetRatio (ví dụ sai lệch không quá 15%), snap về targetRatio.
@@ -603,7 +740,7 @@ class CropImageView @JvmOverloads constructor(
         } else if (abs(computedRatio - 1) < 0.15f) {
             finalWidth = 1f
             finalHeight = 1f
-        }else{
+        } else {
             finalWidth = width
             finalHeight = height
         }
@@ -656,7 +793,10 @@ class CropImageView @JvmOverloads constructor(
         invalidate()
     }
 
-    fun getCropBitmap(baseWidth: Int = 0, config: Bitmap.Config = Bitmap.Config.ARGB_8888): Bitmap? {
+    fun getCropBitmap(
+        baseWidth: Int = 0,
+        config: Bitmap.Config = Bitmap.Config.ARGB_8888
+    ): Bitmap? {
         if (drawable == null) {
             return null
         }
@@ -690,21 +830,24 @@ class CropImageView @JvmOverloads constructor(
         return bitmap
     }
 
-    fun getAccurateCropBitmap(haveBorder : Boolean = false, config: Bitmap.Config = Bitmap.Config.ARGB_8888): Bitmap? {
+    fun getAccurateCropBitmap(
+        haveBorder: Boolean = false,
+        config: Bitmap.Config = Bitmap.Config.ARGB_8888
+    ): Bitmap? {
         if (drawable == null) return null
         val currentBorder = mCornerRadius
         if (showClipPath) {
-            mCropLinesPathPaint.alpha = 0
+            hideBorderImmediate()
             hideClipPath()
         }
         if (!haveBorder) setCornerRadius(0f)
         // Bước 1: Vẽ toàn bộ view thành bitmap
         val fullBitmap = try {
             this.drawToBitmap(config)
-        }catch (e: OutOfMemoryError){
+        } catch (e: OutOfMemoryError) {
             e.printStackTrace()
             null
-        }catch (e: Exception){
+        } catch (e: Exception) {
             e.printStackTrace()
             null
         } ?: return null
@@ -731,14 +874,49 @@ class CropImageView @JvmOverloads constructor(
         val s = touchAreaSize
 
         return when {
-            RectF(rect.left - s, rect.top - s, rect.left + s, rect.top + s).contains(x, y) -> DragCorner.TOP_LEFT
-            RectF(rect.right - s, rect.top - s, rect.right + s, rect.top + s).contains(x, y) -> DragCorner.TOP_RIGHT
-            RectF(rect.left - s, rect.bottom - s, rect.left + s, rect.bottom + s).contains(x, y) -> DragCorner.BOTTOM_LEFT
-            RectF(rect.right - s, rect.bottom - s, rect.right + s, rect.bottom + s).contains(x, y) -> DragCorner.BOTTOM_RIGHT
-            RectF(rect.centerX() - s, rect.top - s, rect.centerX() + s, rect.top + s).contains(x, y) -> DragCorner.CENTER_TOP
-            RectF(rect.left - s, rect.centerY() - s, rect.left + s, rect.centerY() + s).contains(x, y) -> DragCorner.CENTER_LEFT
-            RectF(rect.right - s, rect.centerY() - s, rect.right + s, rect.centerY() + s).contains(x, y) -> DragCorner.CENTER_RIGHT
-            RectF(rect.centerX() - s, rect.bottom - s, rect.centerX() + s, rect.bottom + s).contains(x, y) -> DragCorner.CENTER_BOTTOM
+            RectF(rect.left - s, rect.top - s, rect.left + s, rect.top + s).contains(
+                x,
+                y
+            ) -> DragCorner.TOP_LEFT
+
+            RectF(rect.right - s, rect.top - s, rect.right + s, rect.top + s).contains(
+                x,
+                y
+            ) -> DragCorner.TOP_RIGHT
+
+            RectF(rect.left - s, rect.bottom - s, rect.left + s, rect.bottom + s).contains(
+                x,
+                y
+            ) -> DragCorner.BOTTOM_LEFT
+
+            RectF(rect.right - s, rect.bottom - s, rect.right + s, rect.bottom + s).contains(
+                x,
+                y
+            ) -> DragCorner.BOTTOM_RIGHT
+
+            RectF(rect.centerX() - s, rect.top - s, rect.centerX() + s, rect.top + s).contains(
+                x,
+                y
+            ) -> DragCorner.CENTER_TOP
+
+            RectF(rect.left - s, rect.centerY() - s, rect.left + s, rect.centerY() + s).contains(
+                x,
+                y
+            ) -> DragCorner.CENTER_LEFT
+
+            RectF(
+                rect.right - s,
+                rect.centerY() - s,
+                rect.right + s,
+                rect.centerY() + s
+            ).contains(x, y) -> DragCorner.CENTER_RIGHT
+
+            RectF(
+                rect.centerX() - s,
+                rect.bottom - s,
+                rect.centerX() + s,
+                rect.bottom + s
+            ).contains(x, y) -> DragCorner.CENTER_BOTTOM
 
             else -> DragCorner.NONE
         }
@@ -753,35 +931,48 @@ class CropImageView @JvmOverloads constructor(
                 newRect.left += dx
                 newRect.top += dy
             }
+
             DragCorner.TOP_RIGHT -> {
                 newRect.right += dx
                 newRect.top += dy
             }
+
             DragCorner.BOTTOM_LEFT -> {
                 newRect.left += dx
                 newRect.bottom += dy
             }
+
             DragCorner.BOTTOM_RIGHT -> {
                 newRect.right += dx
                 newRect.bottom += dy
             }
+
             DragCorner.CENTER_TOP -> {
                 newRect.top += dy
             }
+
             DragCorner.CENTER_LEFT -> {
                 newRect.left += dx
             }
+
             DragCorner.CENTER_RIGHT -> {
                 newRect.right += dx
             }
+
             DragCorner.CENTER_BOTTOM -> {
                 newRect.bottom += dy
             }
+
             else -> return
         }
 
         // Giới hạn cropRect không vượt ra ngoài view
-        val viewBounds = RectF(paddingLeft.toFloat(), paddingTop.toFloat(), width - paddingRight.toFloat(), height - paddingBottom.toFloat())
+        val viewBounds = RectF(
+            paddingLeft.toFloat(),
+            paddingTop.toFloat(),
+            width - paddingRight.toFloat(),
+            height - paddingBottom.toFloat()
+        )
         newRect.intersect(viewBounds)
 
         // Nếu width/height quá nhỏ thì bỏ
