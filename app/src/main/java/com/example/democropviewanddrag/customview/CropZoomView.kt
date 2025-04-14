@@ -18,7 +18,7 @@ class CropZoomView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
-    private var backgroundRect = RectF(100f, 100f, 300f, 300f) // Vùng chứa ảnh
+    private var backgroundRect = RectF(100f, 100f, 600f, 600f) // Vùng chứa ảnh
     private var imageBitmap: Bitmap? = null // Ảnh hiển thị
     private var imageMatrix = Matrix() // Ma trận biến đổi ảnh
     private val imagePaint = Paint()
@@ -121,6 +121,7 @@ class CropZoomView @JvmOverloads constructor(
             canvas.drawRect(backgroundRect, borderPaint)
 
             // Vẽ icon rotate (top-left)
+            val iconPaint = Paint()
 
             rotateIcon?.let {
                 val rotateRect = RectF(
@@ -128,7 +129,7 @@ class CropZoomView @JvmOverloads constructor(
                     backgroundRect.left + iconSize / 2, backgroundRect.top + iconSize / 2
                 )
 
-                canvas.drawBitmap(it, null, rotateRect, Paint().apply { color = Color.YELLOW })
+                canvas.drawBitmap(it, null, rotateRect, iconPaint)
             }
 
             // Vẽ icon zoom (bottom-right)
@@ -138,7 +139,7 @@ class CropZoomView @JvmOverloads constructor(
                     backgroundRect.right + iconSize / 2, backgroundRect.bottom + iconSize / 2
                 )
 
-                canvas.drawBitmap(it, null, zoomRect, Paint().apply { color = Color.YELLOW })
+                canvas.drawBitmap(it, null, zoomRect, iconPaint)
             }
         }
     }

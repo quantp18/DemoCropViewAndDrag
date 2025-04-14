@@ -1,14 +1,9 @@
 package com.example.democropviewanddrag
 
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.Bitmap.Config
-import android.graphics.Bitmap.createBitmap
-import android.graphics.Canvas
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import com.example.democropviewanddrag.customview.PositionWatermark
 import com.example.democropviewanddrag.databinding.ActivityTestGroupCustomViewBinding
 import com.example.democropviewanddrag.extension.addWatermark
@@ -25,10 +20,17 @@ class TestGroupCustomViewActivity : AppCompatActivity() {
 
 
         binding?.apply {
+            viewEditor.setCropRatioForBackground(1f, 1f)
             viewEditor.setBackgroundImageResource(R.drawable.bg_remove)
             viewEditor.setForegroundImageResource(R.drawable.content)
+
             btn1.setOnLongClickListener {
-                startActivity(Intent(this@TestGroupCustomViewActivity, DemoRemovePixelActivity::class.java))
+                startActivity(
+                    Intent(
+                        this@TestGroupCustomViewActivity,
+                        DemoRemovePixelActivity::class.java
+                    )
+                )
                 true
             }
 
