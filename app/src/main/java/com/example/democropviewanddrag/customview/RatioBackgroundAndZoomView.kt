@@ -4,14 +4,17 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.graphics.Color
 import android.net.Uri
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.widget.FrameLayout
 import androidx.annotation.Keep
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
 import com.example.democropviewanddrag.databinding.LayoutRatioBackgroundWithZoomviewBinding
 import com.example.democropviewanddrag.extension.trimTransparent
+import androidx.core.graphics.toColorInt
 
 class RatioBackgroundAndZoomView @JvmOverloads constructor(
     context: Context,
@@ -64,6 +67,33 @@ class RatioBackgroundAndZoomView @JvmOverloads constructor(
         safeRun({ backgroundImageView!!.setImageResource(resId) }, onError)
     }
 
+    /**
+     * Set color for background
+     * */
+    fun setBackgroundColorResource(resId: Int, onError: (Exception) -> Unit = {}) {
+        safeRun(
+            {
+                val bitmapBackgroundColor = createBitmap(1000, 1000)
+                val canvas = Canvas(bitmapBackgroundColor)
+                canvas.drawColor(ContextCompat.getColor(context, resId))
+                backgroundImageView!!.setImageBitmap(bitmapBackgroundColor)
+            },
+            onError
+        )
+    }
+
+    fun setBackgroundColorResource(colorStr : String, onError: (Exception) -> Unit = {}) {
+        safeRun(
+            {
+                val bitmapBackgroundColor = createBitmap(1000, 1000)
+                val canvas = Canvas(bitmapBackgroundColor)
+                canvas.drawColor(colorStr.toColorInt())
+                backgroundImageView!!.setImageBitmap(bitmapBackgroundColor)
+            },
+            onError
+        )
+    }
+
     fun setBackgroundImageFile(path: String, onError: (Exception) -> Unit = {}) {
         safeRun({
             val bitmap = BitmapFactory.decodeFile(path)
@@ -83,14 +113,14 @@ class RatioBackgroundAndZoomView @JvmOverloads constructor(
         safeRun({ backgroundImageView!!.setCropRatio(width, height) }, onError)
     }
 
-    fun setCropRatioOriginal(onError: (Exception) -> Unit = {}) : Pair<Int, Int>? {
+    fun setCropRatioOriginal(onError: (Exception) -> Unit = {}): Pair<Int, Int>? {
         return try {
             backgroundImageView!!.setCropRatioOriginal()
-        }catch (e: OutOfMemoryError){
+        } catch (e: OutOfMemoryError) {
             e.printStackTrace()
             onError(Exception("Out of memory"))
             null
-        }catch (e: Exception){
+        } catch (e: Exception) {
             e.printStackTrace()
             onError(e)
             null
@@ -184,6 +214,6 @@ class RatioBackgroundAndZoomView @JvmOverloads constructor(
 }
 
 @Keep
-enum class PositionWatermark{
+enum class PositionWatermark {
     TOP_START, TOP_END, BOTTOM_START, BOTTOM_END
 }

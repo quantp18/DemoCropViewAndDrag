@@ -1,8 +1,13 @@
 package com.example.democropviewanddrag
 
+import android.graphics.Bitmap
+import android.graphics.Bitmap.Config
+import android.graphics.Bitmap.createBitmap
+import android.graphics.Canvas
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.example.democropviewanddrag.customview.PositionWatermark
 import com.example.democropviewanddrag.databinding.ActivityTestGroupCustomViewBinding
 import com.example.democropviewanddrag.extension.addWatermark
@@ -59,7 +64,7 @@ class TestGroupCustomViewActivity : AppCompatActivity() {
             }
 
             btnSetBorder.setOnClickListener {
-                viewEditor.setBackgroundRadius(0f)
+                viewEditor.setBackgroundColorResource("#9CC5FF")
             }
         }
     }
