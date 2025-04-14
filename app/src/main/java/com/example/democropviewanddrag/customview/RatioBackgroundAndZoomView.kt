@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
-import android.graphics.Color
 import android.net.Uri
 import android.util.AttributeSet
 import android.view.LayoutInflater
@@ -12,9 +11,9 @@ import android.widget.FrameLayout
 import androidx.annotation.Keep
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
+import androidx.core.graphics.toColorInt
 import com.example.democropviewanddrag.databinding.LayoutRatioBackgroundWithZoomviewBinding
 import com.example.democropviewanddrag.extension.trimTransparent
-import androidx.core.graphics.toColorInt
 
 class RatioBackgroundAndZoomView @JvmOverloads constructor(
     context: Context,
@@ -82,7 +81,7 @@ class RatioBackgroundAndZoomView @JvmOverloads constructor(
         )
     }
 
-    fun setBackgroundColorResource(colorStr : String, onError: (Exception) -> Unit = {}) {
+    fun setBackgroundColorResource(colorStr: String, onError: (Exception) -> Unit = {}) {
         safeRun(
             {
                 val bitmapBackgroundColor = createBitmap(1000, 1000)
@@ -162,8 +161,10 @@ class RatioBackgroundAndZoomView @JvmOverloads constructor(
         try {
             block()
         } catch (e: OutOfMemoryError) {
+            e.printStackTrace()
             onError(Exception("Out of memory!"))
         } catch (e: Exception) {
+            e.printStackTrace()
             onError(e)
         }
     }

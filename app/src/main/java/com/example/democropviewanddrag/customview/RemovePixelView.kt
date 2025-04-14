@@ -6,6 +6,9 @@ import android.util.AttributeSet
 import android.view.View
 import android.graphics.*
 import android.view.MotionEvent
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.toColorInt
 
 class RemovePixelView @JvmOverloads constructor(
     context: Context,
@@ -51,7 +54,7 @@ class RemovePixelView @JvmOverloads constructor(
 
     fun setImageBitmap(bitmap: Bitmap) {
         imageBitmap = bitmap
-        drawingBitmap = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+        drawingBitmap = createBitmap(bitmap.width, bitmap.height)
         drawingCanvas = Canvas(drawingBitmap!!)
         drawingBitmap!!.eraseColor(Color.TRANSPARENT)
         updateScaleAndOffset(width, height)
@@ -81,6 +84,7 @@ class RemovePixelView @JvmOverloads constructor(
         }
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val x = event.x
         val y = event.y
@@ -182,11 +186,7 @@ class RemovePixelView @JvmOverloads constructor(
     fun getCombinedBitmap(): Bitmap? {
         imageBitmap?.let { background ->
             // Tạo bitmap mới với cùng kích thước và cấu hình như ảnh nền
-            val combinedBitmap = Bitmap.createBitmap(
-                background.width,
-                background.height,
-                Bitmap.Config.ARGB_8888
-            )
+            val combinedBitmap = createBitmap(background.width, background.height)
             val canvas = Canvas(combinedBitmap)
 
             // Vẽ ảnh nền lên bitmap mới

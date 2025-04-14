@@ -1,5 +1,6 @@
 package com.example.democropviewanddrag
 
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Bitmap.Config
 import android.graphics.Bitmap.createBitmap
@@ -26,6 +27,10 @@ class TestGroupCustomViewActivity : AppCompatActivity() {
         binding?.apply {
             viewEditor.setBackgroundImageResource(R.drawable.bg_remove)
             viewEditor.setForegroundImageResource(R.drawable.content)
+            btn1.setOnLongClickListener {
+                startActivity(Intent(this@TestGroupCustomViewActivity, DemoRemovePixelActivity::class.java))
+                true
+            }
 
             btn1.setOnClickListener {
                 viewEditor.setCropRatioForBackground(1f, 1f)
