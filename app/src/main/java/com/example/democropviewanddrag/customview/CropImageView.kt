@@ -851,11 +851,15 @@ class CropImageView @JvmOverloads constructor(
     ): Bitmap? {
         if (drawable == null) return null
         val currentBorder = mCornerRadius
+        val currentAlpha = mCropRectBorderPaint.alpha
         if (showClipPath) {
             hideBorderImmediate()
             hideClipPath()
         }
-        if (!haveBorder) setCornerRadius(0f)
+        if (!haveBorder) {
+            mCropRectBorderPaint.alpha = 0
+            setCornerRadius(0f)
+        }
         // Bước 1: Vẽ toàn bộ view thành bitmap
         val fullBitmap = try {
             this.drawToBitmap(config)
@@ -880,7 +884,10 @@ class CropImageView @JvmOverloads constructor(
             Log.e("Crop", "Out of bounds crop area")
             return null
         }
-        if (!haveBorder) setCornerRadius(currentBorder)
+        if (!haveBorder) {
+            mCropRectBorderPaint.alpha = currentAlpha
+            setCornerRadius(currentBorder)
+        }
         return Bitmap.createBitmap(fullBitmap, left, top, width, height)
     }
 

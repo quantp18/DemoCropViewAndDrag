@@ -108,6 +108,10 @@ class RatioBackgroundAndZoomView @JvmOverloads constructor(
         }, onError)
     }
 
+    fun clearBackground(onError: (Exception) -> Unit = {}) {
+        safeRun({ backgroundImageView?.setImageBitmap(null) }, onError)
+    }
+
     fun setCropRatioForBackground(width: Float, height: Float, onError: (Exception) -> Unit = {}) {
         safeRun({ backgroundImageView!!.setCropRatio(width, height) }, onError)
     }
