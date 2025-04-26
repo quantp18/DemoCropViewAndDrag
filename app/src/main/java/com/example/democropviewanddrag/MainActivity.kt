@@ -22,7 +22,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         binding.btnCrop.setOnClickListener {
-            binding.cropView.getCropBitmap(512)
+//            binding.cropView.getCropBitmap(512)
         }
         binding.btn1.setOnClickListener {
             binding.cropView.setCropRatio(1f, 1f)
@@ -36,7 +36,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.btnShow.setOnClickListener {
-            binding.ivPreview.setImageBitmap(binding.cropView.getCropBitmap())
+//            binding.ivPreview.setImageBitmap(binding.cropView.getCropBitmap())
         }
 
     }

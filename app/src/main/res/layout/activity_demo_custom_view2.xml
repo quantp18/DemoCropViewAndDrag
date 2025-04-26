@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".DemoCustomView2Activity">
+
+    <FrameLayout
+        android:id="@+id/edView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_margin="36dp"
+        android:layout_marginBottom="16dp"
+        app:layout_constraintBottom_toTopOf="@+id/linearLayout2"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+        <com.example.democropviewanddrag.customview.CropImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:id="@+id/cropImageView"/>
+
+        <com.example.democropviewanddrag.customview.CropZoomView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:id="@+id/zoomView"/>
+    </FrameLayout>
+    <androidx.appcompat.widget.AppCompatImageView
+        android:id="@+id/ivPreview"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@+id/edView"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+    <LinearLayout
+        android:id="@+id/linearLayout2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <Button
+                android:id="@+id/btnRatio11"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="1:1" />
+
+            <Button
+                android:id="@+id/btnRatio34"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="3:4" />
+
+            <Button
+                android:id="@+id/btnRatio169"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="16:9" />
+
+            <Button
+                android:id="@+id/btnRatio916"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="9:16" />
+            <Button
+                android:id="@+id/btnCrop"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:singleLine="true"
+                android:text="Crop" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+            <Button
+                android:id="@+id/btnSetBGImageFromCam"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="BG Cam"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/cropView" />
+
+            <Button
+                android:id="@+id/btnSetBGImageFromStorage"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="BG Gallery"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/cropView" />
+
+            <Button
+                android:id="@+id/btnSetFgFromCam"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="FG Cam"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/cropView" />
+
+
+            <Button
+                android:id="@+id/btnSetFgFromStorage"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:text="FG Gallery"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/cropView" />
+        </LinearLayout>
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

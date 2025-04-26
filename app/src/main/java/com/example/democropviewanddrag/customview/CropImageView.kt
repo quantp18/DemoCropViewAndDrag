@@ -18,6 +18,7 @@ import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.util.AttributeSet
 import android.util.Log
+import android.view.GestureDetector
 import android.view.GestureDetector.SimpleOnGestureListener
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
@@ -41,7 +42,7 @@ import androidx.core.content.withStyledAttributes
 
 class CropImageView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : AppCompatImageView(context, attrs, defStyleAttr), OnLayoutChangeListener {
+) : AppCompatImageView(context, attrs, defStyleAttr), View.OnLayoutChangeListener {
 
     companion object {
         private const val DEFAULT_MAX_SCALE = 3
@@ -51,23 +52,16 @@ class CropImageView @JvmOverloads constructor(
     }
 
     private var mAnimDuration = DEFAULT_ANIM_DURATION
-
     private var mScaleEnable: Boolean = true
     private var mMaxScale = DEFAULT_MAX_SCALE
-
     private val mBaseMatrix: Matrix = Matrix()
     private val mSuppMatrix: Matrix = Matrix()
     private val mDrawMatrix: Matrix = Matrix()
-
     private val mMatrixValues = FloatArray(9)
-
     private var mLastScaleFocusX: Float = 0f
     private var mLastScaleFocusY: Float = 0f
-
     private var mUpAnim: ValueAnimator? = null
-
     private val mCropOutRectF = RectF()
-
     private var mCropRatioWidth: Float = 3f
     private var mCropRatioHeight: Float = 2f
     private var mCropBackground: Int = DEFAULT_CROP_MASK_COLOR
@@ -75,33 +69,26 @@ class CropImageView @JvmOverloads constructor(
     private val mXfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
     private var mCropRectF = RectF()
     private var mBackgroundPaint = Paint(Paint.DITHER_FLAG or Paint.ANTI_ALIAS_FLAG)
-
     private val mCropRectBorderPaint = Paint(Paint.DITHER_FLAG or Paint.ANTI_ALIAS_FLAG)
     private var mCropRectBorderWidth: Float = 0f
     private var mCropRectBorderColor: Int = Color.WHITE
-    private var mCornerRadius = 20f  // Giá trị bán kính bo góc, có thể thay đổi
+    private var mCornerRadius = 20f
     private var mCropRectBorderRectF = RectF()
-
     private val mCropPointBorderPaint = Paint(Paint.DITHER_FLAG or Paint.ANTI_ALIAS_FLAG)
     private var mCropPointBorderWidth = 5f
     private var mCropPointBorderColor: Int = Color.WHITE
     private val mFourCornerPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-
     private val cornerBitmap: Bitmap by lazy {
         BitmapFactory.decodeResource(resources, R.drawable.border_item)
     }
-
     private var mShowCropLine = true
     private var mCropLinesWidth = 4f
-
     private val mCropSubLinesPath = Path()
     private val mCropLinesPathPaint = Paint(Paint.DITHER_FLAG or Paint.ANTI_ALIAS_FLAG)
     private var mShowCropLinesPathAnim: ValueAnimator? = null
     private var mHideCropLinesPathAnim: ValueAnimator? = null
     private var mCropLinesAnimDuration = DEFAULT_LINE_ANIM_DURATION
-
-    private val touchAreaSize = 40f  // vùng nhạy để bắt drag (có thể tùy chỉnh)
-
+    private val touchAreaSize = 80f // Tăng để dễ chạm
     private var showClipPath: Boolean = false
 
     private enum class DragCorner {
@@ -112,24 +99,19 @@ class CropImageView @JvmOverloads constructor(
     private var lastTouchX = 0f
     private var lastTouchY = 0f
 
-
     val mCropRectFClone get() = RectF(mCropRectF)
+    var onCropRectChangedListener: ((RectF) -> Unit)? = null
 
-    private val mOnGestureListener = object : SimpleOnGestureListener() {
-        override fun onScroll(
-            e1: MotionEvent?,
-            e2: MotionEvent,
-            distanceX: Float,
-            distanceY: Float
-        ): Boolean {
+    private val mOnGestureListener = object : GestureDetector.SimpleOnGestureListener() {
+        override fun onScroll(e1: MotionEvent?, e2: MotionEvent, distanceX: Float, distanceY: Float): Boolean {
             mSuppMatrix.postTranslate(-distanceX, -distanceY)
             checkAndDisplayMatrix()
             return true
         }
     }
-    private val mOnScaleGestureListener = object : SimpleOnScaleGestureListener() {
-        override fun onScale(detector: ScaleGestureDetector): Boolean {
 
+    private val mOnScaleGestureListener = object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+        override fun onScale(detector: ScaleGestureDetector): Boolean {
             if (mScaleEnable) {
                 val curScale = getScale(mSuppMatrix)
                 var scaleFactor = detector.scaleFactor
@@ -151,9 +133,9 @@ class CropImageView @JvmOverloads constructor(
             return true
         }
     }
+
     private val mGestureDetector = GestureDetectorCompat(context, mOnGestureListener)
     private val mScaleGestureDetector = ScaleGestureDetector(context, mOnScaleGestureListener)
-
 
     init {
         context.withStyledAttributes(attrs, R.styleable.CropImageView) {
@@ -176,30 +158,25 @@ class CropImageView @JvmOverloads constructor(
             strokeWidth = mCropLinesWidth
             alpha = 0
         }
-
         mCropRectBorderPaint.apply {
             style = Paint.Style.STROKE
             strokeWidth = mCropRectBorderWidth
             color = mCropRectBorderColor
         }
-
         mCropPointBorderPaint.apply {
             style = Paint.Style.FILL_AND_STROKE
             strokeWidth = mCropPointBorderWidth
             color = mCropPointBorderColor
             alpha = 0
         }
-
         mBackgroundPaint.apply {
             style = Paint.Style.FILL
             color = mCropBackground
         }
-
         mFourCornerPaint.alpha = 0
+        isClickable = true
+        isFocusable = true
     }
-
-
-    //region Rewrite method
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
@@ -215,13 +192,13 @@ class CropImageView @JvmOverloads constructor(
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val x = event.x
         val y = event.y
+        Log.d("CropImageView", "Touch event: action=${event.action}, x=$x, y=$y")
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 parent.requestDisallowInterceptTouchEvent(true)
                 mUpAnim?.cancel()
                 if (mShowCropLine) showCliPath()
-
                 activeDragCorner = detectTouchCorner(x, y)
                 lastTouchX = x
                 lastTouchY = y
@@ -243,25 +220,18 @@ class CropImageView @JvmOverloads constructor(
                 if (activeDragCorner != DragCorner.NONE) {
                     activeDragCorner = DragCorner.NONE
                     hideClipPath()
-
-                    // Lấy tỷ lệ mới từ crop rect sau khi kéo
                     val newRatio = mCropRectBorderRectF.width() / mCropRectBorderRectF.height()
                     val (w, h) = floatToFraction(newRatio)
-
-                    Log.e("TAG", "floatToFraction: w: $w - h : $h")
-                    // Cập nhật tỷ lệ mới
+                    Log.d("CropImageView", "floatToFraction: w=$w, h=$h")
                     setCropRatio(w.toFloat(), h.toFloat())
-
                     return true
                 }
-
                 scaleAndTranslateToCenter()
                 hideClipPath()
                 mLastScaleFocusX = 0f
                 mLastScaleFocusY = 0f
                 parent.requestDisallowInterceptTouchEvent(false)
             }
-
         }
 
         mGestureDetector.onTouchEvent(event)
@@ -275,7 +245,8 @@ class CropImageView @JvmOverloads constructor(
         var bestError = abs(value - bestNumerator.toFloat() / bestDenominator)
 
         for (denominator in 1..maxDenominator) {
-            val numerator = Math.round(value * denominator)
+            val numerator = (value * denominator).roundToInt()
+            if (numerator == 0) continue
             val error = abs(value - numerator.toFloat() / denominator)
             if (error < bestError) {
                 bestNumerator = numerator
@@ -283,8 +254,51 @@ class CropImageView @JvmOverloads constructor(
                 bestError = error
             }
         }
-
         return Pair(bestNumerator, bestDenominator)
+    }
+
+    private fun resizeCropRect(dx: Float, dy: Float, corner: DragCorner) {
+        val newRect = RectF(mCropRectF)
+        when (corner) {
+            DragCorner.TOP_LEFT -> {
+                newRect.left += dx
+                newRect.top += dy
+            }
+            DragCorner.TOP_RIGHT -> {
+                newRect.right += dx
+                newRect.top += dy
+            }
+            DragCorner.BOTTOM_LEFT -> {
+                newRect.left += dx
+                newRect.bottom += dy
+            }
+            DragCorner.BOTTOM_RIGHT -> {
+                newRect.right += dx
+                newRect.bottom += dy
+            }
+            DragCorner.CENTER_TOP -> newRect.top += dy
+            DragCorner.CENTER_LEFT -> newRect.left += dx
+            DragCorner.CENTER_RIGHT -> newRect.right += dx
+            DragCorner.CENTER_BOTTOM -> newRect.bottom += dy
+            else -> return
+        }
+
+        val viewBounds = RectF(
+            paddingLeft.toFloat(),
+            paddingTop.toFloat(),
+            width - paddingRight.toFloat(),
+            height - paddingBottom.toFloat()
+        )
+        newRect.intersect(viewBounds)
+
+        if (newRect.width() < 50f || newRect.height() < 50f) return
+
+        mCropRectF.set(newRect)
+        mCropRectBorderRectF.set(newRect)
+        mCropRectBorderRectF.inset(mCropRectBorderWidth / 2f, mCropRectBorderWidth / 2f)
+        updateCropSubLines()
+        onCropRectChangedListener?.invoke(mCropRectF)
+        Log.d("CropImageView", "Crop rect updated: $mCropRectF")
     }
 
     @SuppressLint("DrawAllocation")
@@ -298,13 +312,7 @@ class CropImageView @JvmOverloads constructor(
         if (mShowCropLine) {
             canvas.drawPath(mCropSubLinesPath, mCropLinesPathPaint)
         }
-        // Vẽ border với các góc bo tròn thay vì vẽ hình chữ nhật thường
-        canvas.drawRoundRect(
-            mCropRectBorderRectF,
-            mCornerRadius,
-            mCornerRadius,
-            mCropRectBorderPaint
-        )
+        canvas.drawRoundRect(mCropRectBorderRectF, mCornerRadius, mCornerRadius, mCropRectBorderPaint)
         drawEdgeLines(canvas)
     }
 
@@ -312,82 +320,40 @@ class CropImageView @JvmOverloads constructor(
         val rect = mCropRectF
         val lineThickness = mCropPointBorderWidth
 
-        // Vẽ 4 đường line ở giữa các cạnh
-        // CENTER_TOP
         canvas.drawRoundRect(
-            RectF(
-                rect.centerX() - 30f, rect.top - lineThickness,
-                rect.centerX() + 30f, rect.top + lineThickness
-            ),
-            lineThickness,
-            lineThickness,
-            mCropPointBorderPaint
+            RectF(rect.centerX() - 30f, rect.top - lineThickness, rect.centerX() + 30f, rect.top + lineThickness),
+            lineThickness, lineThickness, mCropPointBorderPaint
         )
-        // CENTER_BOTTOM
         canvas.drawRoundRect(
-            RectF(
-                rect.centerX() - 30f, rect.bottom - lineThickness,
-                rect.centerX() + 30f, rect.bottom + lineThickness
-            ),
-            lineThickness,
-            lineThickness,
-            mCropPointBorderPaint
+            RectF(rect.centerX() - 30f, rect.bottom - lineThickness, rect.centerX() + 30f, rect.bottom + lineThickness),
+            lineThickness, lineThickness, mCropPointBorderPaint
         )
-        // CENTER_LEFT
         canvas.drawRoundRect(
-            RectF(
-                rect.left - lineThickness, rect.centerY() - 30f,
-                rect.left + lineThickness, rect.centerY() + 30f
-            ),
-            lineThickness,
-            lineThickness,
-            mCropPointBorderPaint
+            RectF(rect.left - lineThickness, rect.centerY() - 30f, rect.left + lineThickness, rect.centerY() + 30f),
+            lineThickness, lineThickness, mCropPointBorderPaint
         )
-        // CENTER_RIGHT
         canvas.drawRoundRect(
-            RectF(
-                rect.right - lineThickness, rect.centerY() - 30f,
-                rect.right + lineThickness, rect.centerY() + 30f
-            ),
-            lineThickness,
-            lineThickness,
-            mCropPointBorderPaint
+            RectF(rect.right - lineThickness, rect.centerY() - 30f, rect.right + lineThickness, rect.centerY() + 30f),
+            lineThickness, lineThickness, mCropPointBorderPaint
         )
-
         drawCornerBitmaps(canvas, mCropRectBorderRectF)
     }
 
     private fun drawCornerBitmaps(canvas: Canvas, rect: RectF) {
-        val cornerSize = 60  // chiều rộng/chiều cao mong muốn của ảnh góc
+        val cornerSize = 60
         val scaledBitmap = cornerBitmap.scale(cornerSize, cornerSize)
-
-        // =============== TOP LEFT ===============
         canvas.drawBitmap(scaledBitmap, rect.left - 10f, rect.top - 10f, mFourCornerPaint)
-
-        // =============== TOP RIGHT ===============
         canvas.withTranslation(rect.right - scaledBitmap.width + 10f, rect.top - 10f) {
             rotate(90f)
             drawBitmap(scaledBitmap, 0f, -scaledBitmap.height.toFloat(), mFourCornerPaint)
         }
-
-        // =============== BOTTOM LEFT ===============
         canvas.withTranslation(rect.left - 10f, rect.bottom - scaledBitmap.height + 10) {
             rotate(-90f)
             drawBitmap(scaledBitmap, -scaledBitmap.width.toFloat(), 0f, mFourCornerPaint)
         }
-
-        // =============== BOTTOM RIGHT ===============
-        canvas.withTranslation(
-            rect.right - scaledBitmap.width + 10,
-            rect.bottom - scaledBitmap.height + 10
-        ) {
+        canvas.withTranslation(rect.right - scaledBitmap.width + 10, rect.bottom - scaledBitmap.height + 10) {
             rotate(180f)
-            drawBitmap(
-                scaledBitmap,
-                -scaledBitmap.width.toFloat(),
-                -scaledBitmap.height.toFloat(),
-                mFourCornerPaint
-            )
+            drawBitmap(scaledBitmap, -scaledBitmap.width.toFloat(), -scaledBitmap.height.toFloat(), mFourCornerPaint)
         }
     }
 
@@ -396,7 +362,6 @@ class CropImageView @JvmOverloads constructor(
         mCropPointBorderPaint.alpha = 0
         mFourCornerPaint.alpha = 0
     }
-
 
     fun setCornerRadius(radius: Float) {
         mCornerRadius = radius
@@ -431,63 +396,45 @@ class CropImageView @JvmOverloads constructor(
         return change
     }
 
-    override fun onLayoutChange(
-        v: View?,
-        left: Int,
-        top: Int,
-        right: Int,
-        bottom: Int,
-        oldLeft: Int,
-        oldTop: Int,
-        oldRight: Int,
-        oldBottom: Int
-    ) {
+    override fun onLayoutChange(v: View?, left: Int, top: Int, right: Int, bottom: Int, oldLeft: Int, oldTop: Int, oldRight: Int, oldBottom: Int) {
         if (left != oldLeft || top != oldTop || right != oldRight || bottom != oldBottom) {
             updateBaseMatrix()
         }
     }
-    //endregion
 
     private fun updateCropRect() {
-        val viewWidth = measuredWidth - paddingLeft - paddingRight
-        val viewHeight = measuredHeight - paddingTop - paddingBottom
-        if (viewWidth == 0 || viewHeight == 0 || mCropRatioWidth == 0.0f || mCropRatioHeight == 0f) {
+        val viewWidth = (measuredWidth - paddingLeft - paddingRight).toFloat()
+        val viewHeight = (measuredHeight - paddingTop - paddingBottom).toFloat()
+        if (viewWidth <= 0 || viewHeight <= 0 || mCropRatioWidth <= 0 || mCropRatioHeight <= 0) {
+            Log.w("CropImageView", "Invalid dimensions or crop ratio: viewWidth=$viewWidth, viewHeight=$viewHeight, ratio=$mCropRatioWidth:$mCropRatioHeight")
             return
         }
+
         val rectWidth: Float
         val rectHeight: Float
         if (mCropRatioWidth > mCropRatioHeight) {
-            rectWidth = viewWidth.toFloat()
-            rectHeight = viewWidth / mCropRatioWidth * mCropRatioHeight
-        } else if (mCropRatioWidth < mCropRatioHeight) {
-            rectHeight = viewHeight.toFloat()
-            rectWidth = viewHeight / mCropRatioHeight * mCropRatioWidth
+            rectWidth = min(viewWidth * 0.98f, viewWidth) // Giới hạn để tránh tràn
+            rectHeight = rectWidth / mCropRatioWidth * mCropRatioHeight
         } else {
-            rectWidth = viewWidth.coerceAtMost(viewHeight).toFloat()
-            rectHeight = rectWidth
+            rectHeight = min(viewHeight * 0.98f, viewHeight)
+            rectWidth = rectHeight / mCropRatioHeight * mCropRatioWidth
         }
-        val deltaX = (viewWidth - rectWidth) / 2f + paddingLeft
-        val deltaY = (viewHeight - rectHeight) / 2f + paddingTop
 
-        mCropOutRectF.set(deltaX, deltaY, deltaX + rectWidth, deltaY + rectHeight)
+        // Đảm bảo rectWidth và rectHeight không vượt quá view bounds
+        val finalWidth = min(rectWidth, viewWidth)
+        val finalHeight = min(rectHeight, viewHeight)
+
+        val deltaX = (viewWidth - finalWidth) / 2f + paddingLeft
+        val deltaY = (viewHeight - finalHeight) / 2f + paddingTop
+
+        mCropOutRectF.set(deltaX, deltaY, deltaX + finalWidth, deltaY + finalHeight)
         mCropRectF.set(mCropOutRectF)
-
         mCropRectBorderRectF.set(mCropOutRectF)
         mCropRectBorderRectF.inset(mCropRectBorderWidth / 2f, mCropRectBorderWidth / 2f)
 
-        mCropSubLinesPath.reset()
-        val widthLineLength = rectWidth / 3f
-        val heightLineLength = rectHeight / 3f
-
-        mCropSubLinesPath.moveTo(mCropRectF.left + widthLineLength, mCropRectF.top)
-        mCropSubLinesPath.lineTo(mCropRectF.left + widthLineLength, mCropRectF.bottom)
-        mCropSubLinesPath.moveTo(mCropRectF.left + widthLineLength * 2, mCropRectF.top)
-        mCropSubLinesPath.lineTo(mCropRectF.left + widthLineLength * 2, mCropRectF.bottom)
-
-        mCropSubLinesPath.moveTo(mCropRectF.left, mCropRectF.top + heightLineLength)
-        mCropSubLinesPath.lineTo(mCropRectF.right, mCropRectF.top + heightLineLength)
-        mCropSubLinesPath.moveTo(mCropRectF.left, mCropRectF.top + heightLineLength * 2)
-        mCropSubLinesPath.lineTo(mCropRectF.right, mCropRectF.top + heightLineLength * 2)
+        updateCropSubLines()
+        onCropRectChangedListener?.invoke(mCropRectF)
+        Log.d("CropImageView", "Updated crop rect: $mCropRectF, ratio=$mCropRatioWidth:$mCropRatioHeight")
     }
 
     private fun updateBaseMatrix() {
@@ -498,13 +445,11 @@ class CropImageView @JvmOverloads constructor(
 
         val viewWidth = mCropRectF.width()
         val viewHeight = mCropRectF.height()
-
         val drawableWidth = drawable.intrinsicWidth
         val drawableHeight = drawable.intrinsicHeight
-
         val widthScale = viewWidth / drawableWidth
         val heightScale = viewHeight / drawableHeight
-        val scale = widthScale.coerceAtLeast(heightScale)
+        val scale = max(widthScale, heightScale) // Sử dụng max để đảm bảo ảnh vừa khung
         val deltaX = (viewWidth - drawableWidth * scale) / 2f + mCropRectF.left - paddingLeft
         val deltaY = (viewHeight - drawableHeight * scale) / 2f + mCropRectF.top - paddingTop
         mBaseMatrix.reset()
@@ -519,12 +464,7 @@ class CropImageView @JvmOverloads constructor(
         }
         mUpAnim?.cancel()
         val displayRectF = RectF()
-        displayRectF.set(
-            0f,
-            0f,
-            drawable.intrinsicWidth.toFloat(),
-            drawable.intrinsicHeight.toFloat()
-        )
+        displayRectF.set(0f, 0f, drawable.intrinsicWidth.toFloat(), drawable.intrinsicHeight.toFloat())
         getDrawMatrix().mapRect(displayRectF)
 
         val baseRect = RectF()
@@ -535,7 +475,6 @@ class CropImageView @JvmOverloads constructor(
         if (oldScale >= 1) {
             val rw = displayRectF.width()
             val rh = displayRectF.height()
-
             val viewWidth = mCropRectF.width()
             val viewHeight = mCropRectF.height()
             var deltaX = 0f
@@ -552,11 +491,9 @@ class CropImageView @JvmOverloads constructor(
             if (rw >= viewWidth && displayRectF.right < mCropRectF.right) {
                 deltaX = mCropRectF.right - displayRectF.right - paddingLeft
             }
-
             if (rh >= viewHeight && displayRectF.top > mCropRectF.top) {
                 deltaY = mCropRectF.top - displayRectF.top - paddingTop
             }
-
             if (rh >= viewHeight && displayRectF.bottom < mCropRectF.bottom) {
                 deltaY = mCropRectF.bottom - displayRectF.bottom - paddingTop
             }
@@ -566,7 +503,7 @@ class CropImageView @JvmOverloads constructor(
             ValueAnimator.ofFloat(0f, 1f).apply {
                 duration = mAnimDuration
                 interpolator = LinearInterpolator()
-                addUpdateListener(object : AnimatorUpdateListener {
+                addUpdateListener(object : ValueAnimator.AnimatorUpdateListener {
                     private var lastValue: Float = 0f
                     override fun onAnimationUpdate(animation: ValueAnimator) {
                         val value = animation.animatedValue as Float
@@ -588,11 +525,8 @@ class CropImageView @JvmOverloads constructor(
             val startX = getValue(mSuppMatrix, Matrix.MTRANS_X)
             val startY = getValue(mSuppMatrix, Matrix.MTRANS_Y)
             val deltaScale = 1 - oldScale
-
             val baseCropDeltaX = (baseRect.width() - mCropRectF.width()) / 2f
             val baseCropDeltaY = (baseRect.height() - mCropRectF.height()) / 2f
-
-
             val endX = if (displayRectF.left > mCropRectF.left) {
                 baseCropDeltaX
             } else if (displayRectF.right < mCropRectF.right) {
@@ -607,14 +541,12 @@ class CropImageView @JvmOverloads constructor(
             } else {
                 startY
             }
-
             val deltaX = endX - startX
             val deltaY = endY - startY
-
             ValueAnimator.ofFloat(0f, 1f).apply {
                 duration = mAnimDuration
                 interpolator = LinearInterpolator()
-                addUpdateListener(object : AnimatorUpdateListener {
+                addUpdateListener(object : ValueAnimator.AnimatorUpdateListener {
                     private var lastValue: Float = 0f
                     override fun onAnimationUpdate(animation: ValueAnimator) {
                         val value = animation.animatedValue as Float
@@ -635,7 +567,6 @@ class CropImageView @JvmOverloads constructor(
     }
 
     private fun update() {
-        //This must be empty. When this method is called, the class has not yet been initialized.
         if (mSuppMatrix != null) {
             if (mScaleEnable) {
                 updateBaseMatrix()
@@ -660,14 +591,6 @@ class CropImageView @JvmOverloads constructor(
         imageMatrix = getDrawMatrix()
     }
 
-    private fun getImageViewWidth(): Int {
-        return width - paddingLeft - paddingRight
-    }
-
-    private fun getImageViewHeight(): Int {
-        return height - paddingTop - paddingBottom
-    }
-
     private fun getScale(matrix: Matrix): Float {
         matrix.getValues(mMatrixValues)
         return mMatrixValues[Matrix.MSCALE_Y]
@@ -677,7 +600,6 @@ class CropImageView @JvmOverloads constructor(
         matrix.getValues(mMatrixValues)
         return mMatrixValues[valueType]
     }
-
 
     private fun showCliPath() {
         showClipPath = true
@@ -734,122 +656,29 @@ class CropImageView @JvmOverloads constructor(
         }
     }
 
-    fun setCropRatioOriginal(): Pair<Int, Int> {
-        val pair = Pair(drawable.intrinsicWidth, drawable.intrinsicHeight)
-        setCropRatio(pair.first.toFloat(), pair.second.toFloat())
-        return pair
-    }
-
     fun setCropRatio(width: Float, height: Float) {
-        // Tính tỷ lệ mới dựa trên đầu vào (có thể là kết quả của floatToFraction)
-        val computedRatio =
-            width / height  // ví dụ: nếu floatToFraction trả về (76, 71) thì computedRatio ~ 1.070
-        val targetRatio = 5f / 4f            // 5:4 ~ 1.25
-
-        // Nếu computedRatio gần với targetRatio (ví dụ sai lệch không quá 15%), snap về targetRatio.
-        val finalWidth: Float
-        val finalHeight: Float
-        if (abs(computedRatio - targetRatio) < 0.15f) {
-            finalWidth = 5f
-            finalHeight = 4f
-        } else if (abs(computedRatio - 1) < 0.15f) {
-            finalWidth = 1f
-            finalHeight = 1f
-        } else {
-            finalWidth = width
-            finalHeight = height
-        }
-
-        // Lưu lại tỷ lệ crop mới
-        mCropRatioWidth = finalWidth
-        mCropRatioHeight = finalHeight
-
-        // Giữ nguyên trung điểm của vùng crop hiện tại
-        val centerX = mCropRectBorderRectF.centerX()
-        val centerY = mCropRectBorderRectF.centerY()
-
-        // Giữ lại kích thước hiện tại của vùng crop (nếu có) hoặc tính dựa trên mCropOutRectF
-        var newWidth = mCropRectBorderRectF.width()
-        var newHeight = newWidth * (finalHeight / finalWidth)
-
-        // Nếu chiều cao tính được vượt quá giới hạn vùng crop tối đa thì điều chỉnh theo chiều cao
-        if (newHeight > mCropOutRectF.height()) {
-            newHeight = mCropOutRectF.height()
-            newWidth = newHeight * (finalWidth / finalHeight)
-        }
-
-        // Tính biên mới dựa trên trung điểm, đảm bảo không vượt ra ngoài mCropOutRectF
-        val newLeft = max(mCropOutRectF.left, centerX - newWidth / 2f)
-        val newTop = max(mCropOutRectF.top, centerY - newHeight / 2f)
-        val newRight = min(mCropOutRectF.right, centerX + newWidth / 2f)
-        val newBottom = min(mCropOutRectF.bottom, centerY + newHeight / 2f)
-
-        mCropRectBorderRectF.set(newLeft, newTop, newRight, newBottom)
-        mCropRectF.set(mCropRectBorderRectF)
-
+        mCropRatioWidth = width
+        mCropRatioHeight = height
+        updateCropRect()
         updateBaseMatrix()
-        invalidate()
     }
 
-
-    fun setShowCropLine(show: Boolean) {
-        mShowCropLine = show
-        invalidate()
+    fun setCropRatioOriginal(): Pair<Int, Int> {
+        val drawableWidth = drawable?.intrinsicWidth ?: 1
+        val drawableHeight = drawable?.intrinsicHeight ?: 1
+        mCropRatioWidth = drawableWidth.toFloat()
+        mCropRatioHeight = drawableHeight.toFloat()
+        updateCropRect()
+        updateBaseMatrix()
+        return Pair(drawableWidth, drawableHeight)
     }
 
-    fun setCropLineWidth(width: Float) {
-        mCropLinesWidth = width
-        mCropLinesPathPaint.strokeWidth = width
-        invalidate()
-    }
-
-    fun setCropMaskColor(color: Int) {
-        mCropBackground = color
-        invalidate()
-    }
-
-    fun getCropBitmap(
-        baseWidth: Int = 0,
-        config: Bitmap.Config = Bitmap.Config.ARGB_8888
-    ): Bitmap? {
+    fun getAccurateCropBitmap(haveBorder: Boolean = false, config: Bitmap.Config = Bitmap.Config.ARGB_8888): Bitmap? {
         if (drawable == null) {
+            Log.w("CropImageView", "Drawable is null")
             return null
         }
-        val width = mCropRectF.width().toInt()
-        val height = mCropRectF.height().toInt()
-        if (width == 0 || height == 0) {
-            return null
-        }
-        var canvasScale = 1.0f
-        var bitmapWidth = width
-        var bitmapHeight = height
 
-        if (baseWidth != 0) {
-            if (width < height) {
-                canvasScale = baseWidth * 1.0f / width
-                bitmapWidth = baseWidth
-                bitmapHeight = (height * canvasScale).roundToInt()
-            } else {
-                canvasScale = baseWidth * 1.0f / height
-                bitmapWidth = (width * canvasScale).roundToInt()
-                bitmapHeight = baseWidth
-            }
-        }
-        val bitmap = createBitmap(bitmapWidth, bitmapHeight, config)
-        val canvas = Canvas(bitmap)
-        canvas.scale(canvasScale, canvasScale)
-        canvas.translate(-mCropRectF.left, -mCropRectF.top)
-        canvas.withMatrix(getDrawMatrix()) {
-            drawable.draw(this)
-        }
-        return bitmap
-    }
-
-    fun getAccurateCropBitmap(
-        haveBorder: Boolean = false,
-        config: Bitmap.Config = Bitmap.Config.ARGB_8888
-    ): Bitmap? {
-        if (drawable == null) return null
         val currentBorder = mCornerRadius
         val currentAlpha = mCropRectBorderPaint.alpha
         if (showClipPath) {
@@ -860,133 +689,56 @@ class CropImageView @JvmOverloads constructor(
             mCropRectBorderPaint.alpha = 0
             setCornerRadius(0f)
         }
-        // Bước 1: Vẽ toàn bộ view thành bitmap
+
+        // Tạo bitmap từ view
         val fullBitmap = try {
             this.drawToBitmap(config)
         } catch (e: OutOfMemoryError) {
-            e.printStackTrace()
-            null
+            Log.e("CropImageView", "Out of memory while creating bitmap", e)
+            return null
         } catch (e: Exception) {
-            e.printStackTrace()
-            null
+            Log.e("CropImageView", "Error creating bitmap", e)
+            return null
         } ?: return null
 
-        // Bước 2: Xác định vùng crop chính xác trong bitmap của view
-        val scaleX = fullBitmap.width.toFloat() / this.width
-        val scaleY = fullBitmap.height.toFloat() / this.height
+        // Tính toán tỷ lệ giữa bitmap và view
+        val scaleX = fullBitmap.width.toFloat() / width.toFloat()
+        val scaleY = fullBitmap.height.toFloat() / height.toFloat()
+        Log.d("CropImageView", "Scale factors: scaleX=$scaleX, scaleY=$scaleY")
 
-        val left = (mCropRectF.left * scaleX).toInt()
-        val top = (mCropRectF.top * scaleY).toInt()
-        val width = (mCropRectF.width() * scaleX).toInt()
-        val height = (mCropRectF.height() * scaleY).toInt()
+        // Tính toán tọa độ và kích thước vùng crop trên bitmap
+        var left = (mCropRectF.left * scaleX).toInt()
+        var top = (mCropRectF.top * scaleY).toInt()
+        var width = (mCropRectF.width() * scaleX).toInt()
+        var height = (mCropRectF.height() * scaleY).toInt()
 
-        if (left + width > fullBitmap.width || top + height > fullBitmap.height) {
-            Log.e("Crop", "Out of bounds crop area")
+        // Giới hạn tọa độ và kích thước để tránh vượt quá bitmap
+        left = max(0, min(left, fullBitmap.width - 1))
+        top = max(0, min(top, fullBitmap.height - 1))
+        width = min(width, fullBitmap.width - left)
+        height = min(height, fullBitmap.height - top)
+
+        if (width <= 0 || height <= 0) {
+            Log.e("CropImageView", "Invalid crop dimensions: width=$width, height=$height")
             return null
         }
+
+        // Cắt bitmap
+        val croppedBitmap = try {
+            Bitmap.createBitmap(fullBitmap, left, top, width, height)
+        } catch (e: IllegalArgumentException) {
+            Log.e("CropImageView", "Failed to crop bitmap: left=$left, top=$top, width=$width, height=$height", e)
+            return null
+        }
+
+        // Khôi phục trạng thái
         if (!haveBorder) {
             mCropRectBorderPaint.alpha = currentAlpha
             setCornerRadius(currentBorder)
         }
-        return Bitmap.createBitmap(fullBitmap, left, top, width, height)
+
+        return croppedBitmap
     }
-
-    private fun detectTouchCorner(x: Float, y: Float): DragCorner {
-        val rect = mCropRectF
-        val s = touchAreaSize
-
-        return when {
-            RectF(rect.left - s, rect.top - s, rect.left + s, rect.top + s)
-                .contains(x, y) -> DragCorner.TOP_LEFT
-
-            RectF(rect.right - s, rect.top - s, rect.right + s, rect.top + s)
-                .contains(x, y) -> DragCorner.TOP_RIGHT
-
-            RectF(rect.left - s, rect.bottom - s, rect.left + s, rect.bottom + s)
-                .contains(x, y) -> DragCorner.BOTTOM_LEFT
-
-            RectF(rect.right - s, rect.bottom - s, rect.right + s, rect.bottom + s)
-                .contains(x, y) -> DragCorner.BOTTOM_RIGHT
-
-            RectF(rect.centerX() - s, rect.top - s, rect.centerX() + s, rect.top + s)
-                .contains(x, y) -> DragCorner.CENTER_TOP
-
-            RectF(rect.left - s, rect.centerY() - s, rect.left + s, rect.centerY() + s)
-                .contains(x, y) -> DragCorner.CENTER_LEFT
-
-            RectF(rect.right - s, rect.centerY() - s, rect.right + s, rect.centerY() + s)
-                .contains(x, y) -> DragCorner.CENTER_RIGHT
-
-            RectF(rect.centerX() - s, rect.bottom - s, rect.centerX() + s, rect.bottom + s)
-                .contains(x, y) -> DragCorner.CENTER_BOTTOM
-
-            else -> DragCorner.NONE
-        }
-    }
-
-
-    private fun resizeCropRect(dx: Float, dy: Float, corner: DragCorner) {
-        val newRect = RectF(mCropRectF)
-
-        when (corner) {
-            DragCorner.TOP_LEFT -> {
-                newRect.left += dx
-                newRect.top += dy
-            }
-
-            DragCorner.TOP_RIGHT -> {
-                newRect.right += dx
-                newRect.top += dy
-            }
-
-            DragCorner.BOTTOM_LEFT -> {
-                newRect.left += dx
-                newRect.bottom += dy
-            }
-
-            DragCorner.BOTTOM_RIGHT -> {
-                newRect.right += dx
-                newRect.bottom += dy
-            }
-
-            DragCorner.CENTER_TOP -> {
-                newRect.top += dy
-            }
-
-            DragCorner.CENTER_LEFT -> {
-                newRect.left += dx
-            }
-
-            DragCorner.CENTER_RIGHT -> {
-                newRect.right += dx
-            }
-
-            DragCorner.CENTER_BOTTOM -> {
-                newRect.bottom += dy
-            }
-
-            else -> return
-        }
-
-        // Giới hạn cropRect không vượt ra ngoài view
-        val viewBounds = RectF(
-            paddingLeft.toFloat(),
-            paddingTop.toFloat(),
-            width - paddingRight.toFloat(),
-            height - paddingBottom.toFloat()
-        )
-        newRect.intersect(viewBounds)
-
-        // Nếu width/height quá nhỏ thì bỏ
-        if (newRect.width() < 100f || newRect.height() < 100f) return
-
-        // Gán lại
-        mCropRectF.set(newRect)
-        mCropRectBorderRectF.set(newRect)
-        mCropRectBorderRectF.inset(mCropRectBorderWidth / 2f, mCropRectBorderWidth / 2f)
-        updateCropSubLines()
-    }
-
 
     private fun updateCropSubLines() {
         mCropSubLinesPath.reset()
@@ -997,11 +749,63 @@ class CropImageView @JvmOverloads constructor(
         mCropSubLinesPath.lineTo(mCropRectF.left + widthLineLength, mCropRectF.bottom)
         mCropSubLinesPath.moveTo(mCropRectF.left + widthLineLength * 2, mCropRectF.top)
         mCropSubLinesPath.lineTo(mCropRectF.left + widthLineLength * 2, mCropRectF.bottom)
-
         mCropSubLinesPath.moveTo(mCropRectF.left, mCropRectF.top + heightLineLength)
         mCropSubLinesPath.lineTo(mCropRectF.right, mCropRectF.top + heightLineLength)
         mCropSubLinesPath.moveTo(mCropRectF.left, mCropRectF.top + heightLineLength * 2)
         mCropSubLinesPath.lineTo(mCropRectF.right, mCropRectF.top + heightLineLength * 2)
     }
 
+    private fun detectTouchCorner(x: Float, y: Float): DragCorner {
+        val rect = mCropRectF
+        val touchSize = touchAreaSize
+
+        if (x >= rect.left - touchSize && x <= rect.left + touchSize &&
+            y >= rect.top - touchSize && y <= rect.top + touchSize
+        ) {
+            return DragCorner.TOP_LEFT
+        }
+        if (x >= rect.right - touchSize && x <= rect.right + touchSize &&
+            y >= rect.top - touchSize && y <= rect.top + touchSize
+        ) {
+            return DragCorner.TOP_RIGHT
+        }
+        if (x >= rect.left - touchSize && x <= rect.left + touchSize &&
+            y >= rect.bottom - touchSize && y <= rect.bottom + touchSize
+        ) {
+            return DragCorner.BOTTOM_LEFT
+        }
+        if (x >= rect.right - touchSize && x <= rect.right + touchSize &&
+            y >= rect.bottom - touchSize && y <= rect.bottom + touchSize
+        ) {
+            return DragCorner.BOTTOM_RIGHT
+        }
+        if (y >= rect.top - touchSize && y <= rect.top + touchSize &&
+            x >= rect.left && x <= rect.right
+        ) {
+            return DragCorner.CENTER_TOP
+        }
+        if (y >= rect.bottom - touchSize && y <= rect.bottom + touchSize &&
+            x >= rect.left && x <= rect.right
+        ) {
+            return DragCorner.CENTER_BOTTOM
+        }
+        if (x >= rect.left - touchSize && x <= rect.left + touchSize &&
+            y >= rect.top && y <= rect.bottom
+        ) {
+            return DragCorner.CENTER_LEFT
+        }
+        if (x >= rect.right - touchSize && x <= rect.right + touchSize &&
+            y >= rect.top && y <= rect.bottom
+        ) {
+            return DragCorner.CENTER_RIGHT
+        }
+        return DragCorner.NONE
+    }
+    // Trong CropImageView.kt
+    fun getCropRect(): RectF {
+        return RectF(mCropRectF)
+    }
+    fun getCropBorderRect(): RectF {
+        return RectF(mCropRectBorderRectF)
+    }
 }
