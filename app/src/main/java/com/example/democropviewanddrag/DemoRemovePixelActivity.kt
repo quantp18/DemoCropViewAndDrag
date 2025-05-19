@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.widget.SeekBar
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import com.example.democropviewanddrag.customview.ToolMode
 import com.example.democropviewanddrag.databinding.ActivityDemoRemovePixelBinding
 
 class DemoRemovePixelActivity : AppCompatActivity() {
@@ -49,9 +50,13 @@ class DemoRemovePixelActivity : AppCompatActivity() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
+        var currentModeTool = ToolMode.BRUSH
 
         // Thay đổi màu bút vẽ
-        binding.redButton.setOnClickListener { binding.removePixelView.setBrushColor(Color.RED) }
+        binding.toggleOption.setOnClickListener {
+            currentModeTool = if (currentModeTool == ToolMode.BRUSH) ToolMode.LASSO else ToolMode.BRUSH
+            binding.removePixelView.setToolMode(currentModeTool)
+        }
         binding.blueButton.setOnClickListener { binding.removePixelView.setBrushColor(Color.BLUE) }
         binding.greenButton.setOnClickListener { binding.removePixelView.setBrushColor(Color.GREEN) }
 
@@ -61,7 +66,7 @@ class DemoRemovePixelActivity : AppCompatActivity() {
 
 
         binding.undoButton.setOnLongClickListener {
-            binding.imgContent.setImageBitmap(binding.removePixelView.getCombinedBitmap())
+            binding.imgContent.setImageBitmap(binding.removePixelView.getMarkBitmap())
             true
         }
     }

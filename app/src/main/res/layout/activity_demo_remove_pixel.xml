@@ -61,12 +61,12 @@
             android:text="Redo" />
 
         <Button
-            android:id="@+id/redButton"
+            android:id="@+id/toggleOption"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:backgroundTint="#FF0000"
-            android:text="Red" />
+            android:text="Tg" />
 
         <Button
             android:id="@+id/blueButton"
